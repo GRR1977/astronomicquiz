@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astronomia Avançada - 6º ao 9º Ano</title>
+    
+    <!-- Fonte sans-serif para boa leitura -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* =============================
+           RESET E CONFIGURAÇÕES GLOBAIS
+           ============================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth; /* Rolagem suave ao clicar nos links */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f6f8; /* Cinza claro */
+            color: #1a2a3a;            /* Azul marinho escuro para texto */
+            line-height: 1.6;
+        }
+
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* =============================
+           HEADER E NAVEGAÇÃO
+           ============================= */
+        header {
+            background-color: #0b1c2f; /* Azul marinho */
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Menu de navegação desktop */
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+
+        nav a:hover,
+        nav a:focus {
+            color: #87ceeb; /* Azul claro */
+        }
+
+        /* Botão hamburguer para mobile */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* =============================
+           HERO
+           ============================= */
+        .hero {
+            background: linear-gradient(135deg, #0b1c2f 0%, #142d49 60%, #1e3a5f 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 6rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Estrelas decorativas sutis no fundo */
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,0.7), transparent),
+                radial-gradient(2px 2px at 85% 70%, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,0.9), transparent);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            max-width: 600px;
+            margin: 0 auto;
+            color: #d0e3f3;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* =============================
+           SEÇÕES DE CONTEÚDO
+           ============================= */
+        .section {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+        }
+
+        .section:nth-child(even) {
+            background-color: #ffffff; /* Alternância sutil de cor */
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #0b1c2f;
+            margin-bottom: 0.5rem;
+            border-left: 5px solid #1e5a96;
+            padding-left: 0.8rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: #4a6073;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .content-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1.5rem;
+        }
+
+        .section:nth-child(even) .content-card {
+            background-color: #f4f6f8; /* Mantém contraste em fundos alternados */
+        }
+
+        .content-card h3 {
+            color: #1e5a96;
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .content-card p {
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+
+        .content-card ul {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .content-card li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box {
+            background-color: #e8f1f8;
+            border-left: 4px solid #1e5a96;
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .highlight-box strong {
+            color: #0b1c2f;
+        }
+
+        /* =============================
+           QUIZ
+           ============================= */
+        #quiz {
+            background-color: #0b1c2f;
+            color: #ffffff;
+            padding: 4rem 1.5rem;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #quiz h2 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+        }
+
+        .quiz-question {
+            background-color: #142d49;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .quiz-question p {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.05rem;
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: #1e3a5f;
+            color: #ffffff;
+            border: 1px solid #3a5a80;
+            border-radius: 6px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 0.6rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            font-size: 1rem;
+        }
+
+        .quiz-option:hover {
+            background-color: #2a4d78;
+            border-color: #5a8ac0;
+        }
+
+        .quiz-option.correct {
+            background-color: #2e7d32;
+            border-color: #4caf50;
+        }
+
+        .quiz-option.wrong {
+            background-color: #c62828;
+            border-color: #ef5350;
+        }
+
+        .quiz-option:disabled {
+            cursor: default;
+            opacity: 0.9;
+        }
+
+        .quiz-feedback {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            min-height: 1.4rem;
+            color: #b0d4f1;
+        }
+
+        .quiz-score {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #142d49;
+            border-radius: 8px;
+        }
+
+        /* =============================
+           FOOTER
+           ============================= */
+        footer {
+            background-color: #071220;
+            color: #a0b3c6;
+            text-align: center;
+            padding: 2rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* =============================
+           RESPONSIVIDADE
+           ============================= */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            nav ul {
+                display: none; /* Escondido por padrão no mobile */
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                width: 100%;
+                background-color: #0b1c2f;
+                padding: 1rem 1.5rem;
+                gap: 1rem;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+
+            nav ul.active {
+                display: flex; /* Exibe quando o menu é aberto */
+            }
+
+            .hero {
+                padding: 4rem 1rem;
+            }
+
+            .hero h1 {
+                font-size: 1.9rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .section {
+                padding: 2.5rem 1rem;
+            }
+
+            .content-card {
+                padding: 1.25rem;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =============================
+         HEADER: LOGO E NAVEGAÇÃO
+         ============================= -->
+    <header>
+        <div class="nav-container">
+            <div class="logo">🚀 Astronomia Avançada</div>
+            <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false" onclick="toggleMenu()">☰</button>
+            <nav id="main-nav">
+                <ul>
+                    <li><a href="#home" onclick="closeMenu()">Home</a></li>
+                    <li><a href="#sexto" onclick="closeMenu()">6º Ano</a></li>
+                    <li><a href="#setimo" onclick="closeMenu()">7º Ano</a></li>
+                    <li><a href="#oitavo" onclick="closeMenu()">8º Ano</a></li>
+                    <li><a href="#nono" onclick="closeMenu()">9º Ano</a></li>
+                    <li><a href="#quiz" onclick="closeMenu()">Quiz</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- =============================
+         HERO: TÍTULO IMPACTANTE
+         ============================= -->
+    <section class="hero" id="home">
+        <h1>Explorando o Universo</h1>
+        <p>Uma jornada pela astronomia avançada do 6º ao 9º ano. Do Sistema Solar aos buracos negros, descubra os mistérios do cosmos de forma clara e envolvente.</p>
+    </section>
+
+    <!-- =============================
+         6º ANO: SISTEMA SOLAR E GRAVITAÇÃO
+         ============================= -->
+    <section class="section" id="sexto">
+        <h2 class="section-title">6º Ano</h2>
+        <p class="section-subtitle">Sistema Solar e Gravitação</p>
+
+        <div class="content-card">
+            <h3>🌍 O Sistema Solar</h3>
+            <p>O Sistema Solar é formado pelo Sol, oito planetas, luas, asteroides, cometas e outros corpos celestes. Os planetas rochosos (Mercúrio, Vênus, Terra e Marte) ficam mais próximos do Sol, enquanto os gigantes gasosos (Júpiter, Saturno, Urano e Netuno) orbitam mais distantes.</p>
+            <p>A estrutura do Sistema Solar é organizada por forças gravitacionais e movimentos ordenados que mantêm cada corpo em sua trajetória.</p>
+        </div>
+
+        <div class="content-card">
+            <h3>⚖️ As Leis de Kepler</h3>
+            <p>Johannes Kepler descreveu três leis fundamentais para entender o movimento dos planetas:</p>
+            <ul>
+                <li><strong>1ª Lei:</strong> Os planetas orbitam o Sol em trajetórias elípticas, com o Sol em um dos focos.</li>
+                <li><strong>2ª Lei:</strong> A linha que une um planeta ao Sol varre áreas iguais em tempos iguais, ou seja, o planeta acelera quando está mais próximo do Sol.</li>
+                <li><strong>3ª Lei:</strong> O quadrado do período orbital de um planeta é proporcional ao cubo da distância média ao Sol.</li>
+            </ul>
+            <div class="highlight-box">
+                <strong>Curiosidade:</strong> A gravitação é a força que mantém a Lua em órbita da Terra e os planetas em órbita do Sol. Sem ela, os astros fluticariam sem trajetória definida pelo espaço.
+            </div>
+        </div>
+    </section>
+
+    <!-- =============================
+         7º ANO: CICLO DE VIDA ESTELAR
+         ============================= -->
+    <section class="section" id="setimo">
+        <h2 class="section-title">7º Ano</h2>
+        <p class="section-subtitle">Ciclo de Vida Estelar e Nebulosas</p>
+
+        <div class="content-card">
+            <h3>⭐ Nascimento, Vida e Morte das Estrelas</h3>
+            <p>As estrelas nascem em nuvens gigantes de gás e poeira chamadas nebulosas. Quando a gravidade comprime esse material, a temperatura e a pressão aumentam até iniciar as reações de fusão nuclear, fazendo a estrela "acender".</p>
+            <p>O ciclo de vida de uma estrela depende da sua massa:</p>
+            <ul>
+                <li><strong>Estrelas pequenas:</strong> vivem bilhões de anos e terminam como anãs brancas.</li>
+                <li><strong>Estrelas massivas:</strong> podem explodir como supernovas e deixar buracos negros ou estrelas de nêutrons.</li>
+            </ul>
+        </div>
+
+        <div class="content-card">
+            <h3>🌌 Nebulosas</h3>
+            <p>Nebulosas são berçários estelares. A famosa Nebulosa de Órion, por exemplo, abriga estrelas em formação. Além disso, nebulosas podem ser resultado da morte de estrelas, como as nebulosas planetárias.</p>
+            <div class="highlight-box">
+                <strong>Pense nisso:</strong> Os átomos que formam o nosso corpo podem ter sido criados no interior de estrelas antigas. Somos, literalmente, poeira das estrelas!
+            </div>
+        </div>
+    </section>
+
+    <!-- =============================
+         8º ANO: GALÁXIAS E MATÉRIA ESCURA
+         ============================= -->
+    <section class="section" id="oitavo">
+        <h2 class="section-title">8º Ano</h2>
+        <p class="section-subtitle">Galáxias e Matéria Escura</p>
+
+        <div class="content-card">
+            <h3>🌠 Tipos de Galáxias</h3>
+            <p>Galáxias são grandes aglomerados de estrelas, gás, poeira e matéria escura. Elas podem ser classificadas em três principais tipos:</p>
+            <ul>
+                <li><strong>Espirais:</strong> possuem braços em rotação, como a Via Láctea.</li>
+                <li><strong>Elípticas:</strong> formato mais arredondado, com pouco gás e poeira.</li>
+                <li><strong>Irregulares:</strong> não têm formato definido.</li>
+            </ul>
+            <p>A Via Láctea, nossa galáxia, abriga cerca de 200 bilhões de estrelas e tem o Sol em um de seus braços espirais.</p>
+        </div>
+
+        <div class="content-card">
+            <h3>🌑 Matéria Escura</h3>
+            <p>Matéria escura é uma substância misteriosa que não emite luz, mas sua presença é detectada pela gravidade. Ela mantém as galáxias unidas e influencia a forma como se movem no Universo.</p>
+            <div class="highlight-box">
+                <strong>Desafio científico:</strong> Cientistas ainda não sabem exatamente do que a matéria escura é feita. Estudos atuais buscam partículas invisíveis que possam explicar esse fenômeno.
+            </div>
+        </div>
+    </section>
+
+    <!-- =============================
+         9º ANO: BURACOS NEGROS, BIG BANG E EXOPLANETAS
+         ============================= -->
+    <section class="section" id="nono">
+        <h2 class="section-title">9º Ano</h2>
+        <p class="section-subtitle">Buracos Negros, Big Bang e Exoplanetas</p>
+
+        <div class="content-card">
+            <h3>🕳️ Buracos Negros</h3>
+            <p>Buracos negros são regiões do espaço onde a gravidade é tão intensa que nada, nem a luz, consegue escapar. Eles se formam quando estrelas muito massivas colapsam ao final de suas vidas.</p>
+            <p>A fronteira de um buraco negro é chamada de <strong>horizonte de eventos</strong>. Além dela, as leis da física conhecidas começam a se comportar de forma estranha.</p>
+        </div>
+
+        <div class="content-card">
+            <h3>💥 Big Bang</h3>
+            <p>O Big Bang é o modelo científico que descreve a origem do Universo há cerca de 13,8 bilhões de anos. O Universo começou extremamente quente e denso e vem se expandindo desde então.</p>
+            <div class="highlight-box">
+                <strong>Evidência:</strong> A radiação cósmica de fundo e o desvio para o vermelho da luz das galáxias distantes apoiam a teoria do Big Bang.
+            </div>
+        </div>
+
+        <div class="content-card">
+            <h3>🪐 Exoplanetas</h3>
+            <p>Exoplanetas são planetas que orbitam estrelas fora do Sistema Solar. Cientistas os descobrem usando métodos como o trânsito (quando o planeta passa na frente da estrela) e a velocidade radial (movimento da estrela).</p>
+            <p>A busca por exoplanetas habitáveis é uma das áreas mais empolgantes da astronomia moderna.</p>
+        </div>
+    </section>
+
+    <!-- =============================
+         QUIZ INTERATIVO
+         ============================= -->
+    <section id="quiz">
+        <div class="quiz-container">
+            <h2>🧠 Teste seus Conhecimentos</h2>
+            <div id="quiz-content">
+                <!-- As perguntas são inseridas pelo JavaScript -->
+            </div>
+            <div id="quiz-result" class="quiz-score" style="display: none;"></div>
+        </div>
+    </section>
+
+    <!-- =============================
+         FOOTER
+         ============================= -->
+    <footer>
+        <p>&copy; 2025 Astronomia Avançada. Feito para alunos do 6º ao 9º ano.</p>
+    </footer>
+
+    <!-- =============================
+         JAVASCRIPT: MENU E QUIZ
+         ============================= -->
+    <script>
+        // ------------------------------
+        // CONTROLE DO MENU MOBILE
+        // ------------------------------
+        function toggleMenu() {
+            const navUl = document.querySelector('#main-nav ul');
+            const button = document.querySelector('.menu-toggle');
+            const isOpen = navUl.classList.toggle('active');
+            button.setAttribute('aria-expanded', isOpen);
+            button.textContent = isOpen ? '✕' : '☰';
+        }
+
+        function closeMenu() {
+            const navUl = document.querySelector('#main-nav ul');
+            const button = document.querySelector('.menu-toggle');
+            navUl.classList.remove('active');
+            button.setAttribute('aria-expanded', 'false');
+            button.textContent = '☰';
+        }
+
+        // ------------------------------
+        // DADOS DO QUIZ
+        // ------------------------------
+        const quizData = [
+            {
+                question: "Qual é a forma da órbita dos planetas, segundo Kepler?",
+                options: ["Circular", "Elíptica", "Retilínea", "Espiral"],
+                answer: 1
+            },
+            {
+                question: "Onde nascem as estrelas?",
+                options: ["Em buracos negros", "Em nebulosas", "No centro de galáxias", "Fora do Universo"],
+                answer: 1
+            },
+            {
+                question: "Qual substância misteriosa mantém as galáxias unidas?",
+                options: ["Matéria escura", "Antimatéria", "Plasma", "Hélio"],
+                answer: 0
+            },
+            {
+                question: "O que nada pode escapar, nem mesmo a luz?",
+                options: ["Uma supernova", "Um buraco negro", "Uma nebulosa", "Um cometa"],
+                answer: 1
+            },
+            {
+                question: "Como se chamam os planetas fora do Sistema Solar?",
+                options: ["Asteroides", "Exoplanetas", "Anões brancos", "Galáxias"],
+                answer: 1
+            }
+        ];
+
+        let score = 0;
+        let answeredCount = 0;
+
+        // ------------------------------
+        // RENDERIZAÇÃO DO QUIZ
+        // ------------------------------
+        const quizContent = document.getElementById('quiz-content');
+        const resultBox = document.getElementById('quiz-result');
+
+        quizData.forEach((item, index) => {
+            // Cria o container da pergunta
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'quiz-question';
+
+            // Texto da pergunta
+            const questionText = document.createElement('p');
+            questionText.textContent = `${index + 1}. ${item.question}`;
+            questionDiv.appendChild(questionText);
+
+            // Cria as opções de resposta
+            item.options.forEach((option, optionIndex) => {
+                const button = document.createElement('button');
+                button.className = 'quiz-option';
+                button.textContent = option;
+                button.addEventListener('click', () => checkAnswer(button, optionIndex, item.answer, index));
+                questionDiv.appendChild(button);
+            });
+
+            // Área para feedback ao usuário
+            const feedback = document.createElement('div');
+            feedback.className = 'quiz-feedback';
+            feedback.id = `feedback-${index}`;
+            questionDiv.appendChild(feedback);
+
+            quizContent.appendChild(questionDiv);
+        });
+
+        // ------------------------------
+        // LÓGICA DE VERIFICAÇÃO DAS RESPOSTAS
+        // ------------------------------
+        function checkAnswer(button, selectedIndex, correctIndex, questionIndex) {
+            const questionDiv = button.parentElement;
+            const buttons = questionDiv.querySelectorAll('.quiz-option');
+            const feedback = document.getElementById(`feedback-${questionIndex}`);
+
+            // Evita que a pergunta seja respondida mais de uma vez
+            if (buttons[0].disabled) return;
+
+            buttons.forEach(btn => btn.disabled = true);
+
+            if (selectedIndex === correctIndex) {
+                button.classList.add('correct');
+                feedback.textContent = 'Resposta correta! 🎉';
+                score++;
+            } else {
+                button.classList.add('wrong');
+                buttons[correctIndex].classList.add('correct');
+                feedback.textContent = 'Resposta incorreta. A alternativa correta está destacada.';
+            }
+
+            answeredCount++;
+
+            // Exibe a pontuação final quando todas as perguntas forem respondidas
+            if (answeredCount === quizData.length) {
+                resultBox.style.display = 'block';
+                resultBox.textContent = `Você acertou ${score} de ${quizData.length} perguntas!`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,1526 +1,962 @@
 <!DOCTYPE html>
-<html lang='pt-BR'>
-<head>
-<meta charset='UTF-8'>
-<title>CosmoQuest - Funky Geo Quest</title>
-<style>
-  :root{ --neon-pink:#ff2a6d; --neon-cyan:#05d9e8; --neon-yellow:#f7e733; --neon-purple:#b967ff; --void:#0b0d1a; }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:radial-gradient(circle at 50% 10%, #1a1e45 0%, #0b0d1a 70%, #05060f 100%);color:#fff;display:flex;flex-direction:column;align-items:center;min-height:100vh}
-  header{padding:1rem;text-align:center}
-  h1{margin:0;font-size:3rem;font-weight:900;letter-spacing:4px;text-shadow:0 0 8px var(--neon-cyan), 0 0 16px var(--neon-pink);text-transform:uppercase}
-  p{margin:0.5rem 0 0;font-size:1.1rem;opacity:0.85;color:var(--neon-yellow)}
-  .toolbar{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:14px;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.15);border-radius:24px;margin:12px 0;backdrop-filter:blur(6px)}
-  button{border:none;border-radius:16px;padding:12px 22px;font-size:1rem;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));box-shadow:0 4px 0 rgba(0,0,0,0.3),0 0 12px rgba(5,217,232,0.3);transition:transform .1s, box-shadow .1s}
-  button:hover{transform:translateY(-2px);box-shadow:0 6px 0 rgba(0,0,0,0.3),0 0 20px rgba(5,217,232,0.5)}
-  button:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.3)}
-  button.active{background:linear-gradient(135deg, var(--neon-pink), var(--neon-yellow));color:#120024}
-  .stage{width:96vw;max-width:1300px;display:flex;justify-content:center;margin-bottom:1rem}
-  canvas{width:100%;height:600px;border-radius:20px;box-shadow:0 0 30px rgba(5,217,232,0.15),0 0 60px rgba(0,0,0,0.5) inset;background:var(--void);cursor:crosshair}
-  .info{padding:0.5rem 1rem;font-size:0.95rem;opacity:0.8;text-align:center}
-</style>
-</head>
-<body>
-<header>
-  <h1>CosmoQuest</h1>
-  <p>Gravidade, Pulsares e Discos de Acreção</p>
-</header>
-<div class='toolbar'>
-  <button data-tool='star' class='active'>Estrela</button>
-  <button data-tool='planet'>Planeta</button>
-  <button data-tool='blackhole'>Buraco Negro</button>
-  <button data-tool='pulsar'>Pulsar</button>
-  <button id='clearBtn'>Limpar Universo</button>
-</div>
-<div class='stage'><canvas id='cosmos'></canvas></div>
-<div class='info'>Clique no canvas para criar. Buracos negros atraem estrelas e planetas; se chegarem muito perto, são consumidos.</div>
-<script>
-const canvas=document.getElementById('cosmos');
-const ctx=canvas.getContext('2d');
-const toolbar=document.querySelector('.toolbar');
-const clearBtn=document.getElementById('clearBtn');
-
-let width,height;
-function resize(){ const rect=canvas.parentElement.getBoundingClientRect(); width=canvas.width=rect.width; height=canvas.height=600; }
-resize(); window.addEventListener('resize',resize);
-
-const G=0.5;
-const DT=0.6;
-let objects=[];
-let tool='star';
-
-toolbar.addEventListener('click',e=>{
-  if(e.target.dataset.tool){ tool=e.target.dataset.tool; document.querySelectorAll('button[data-tool]').forEach(b=>b.classList.toggle('active',b===e.target)); }
-});
-clearBtn.addEventListener('click',()=>{ objects=[]; });
-
-function toRad(d){ return d*Math.PI/180; }
-
-class Body{
-  constructor(x,y,mass,radius,color){ this.x=x; this.y=y; this.vx=0; this.vy=0; this.mass=mass; this.radius=radius; this.color=color; this.dead=false; }
-  dist(o){ const dx=o.x-this.x, dy=o.y-this.y; return Math.hypot(dx,dy); }
-  update(){ this.x+=this.vx*DT; this.y+=this.vy*DT; }
-  bounds(){ if(this.x<0||this.x>width){this.vx*=-0.8;this.x=Math.max(0,Math.min(width,this.x));} if(this.y<0||this.y>height){this.vy*=-0.8;this.y=Math.max(0,Math.min(height,this.y));} }
-}
-
-class Star extends Body{
-  constructor(x,y){ super(x,y,80,14,'#ffe600'); this.pulse=Math.random()*Math.PI*2; }
-  draw(ctx){
-    this.pulse+=0.08;
-    const r=this.radius+Math.sin(this.pulse)*1.5;
-    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,r*3);
-    g.addColorStop(0,'#fff'); g.addColorStop(0.2,this.color); g.addColorStop(0.5,'rgba(255,100,50,0.35)'); g.addColorStop(1,'rgba(255,100,50,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,r*3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(this.x,this.y,r*0.5,0,Math.PI*2); ctx.fill();
-  }
-}
-
-class Pulsar extends Star{
-  constructor(x,y){ super(x,y); this.color='#05d9e8'; this.angle=Math.random()*Math.PI*2; this.spin=0.04; this.beamLen=400; }
-  update(){ super.update(); this.angle+=this.spin; }
-  draw(ctx){
-    super.draw(ctx);
-    ctx.save();
-    ctx.translate(this.x,this.y); ctx.rotate(this.angle);
-    const grad=ctx.createRadialGradient(0,0,0,0,0,this.beamLen);
-    grad.addColorStop(0,'rgba(5,217,232,0.9)');
-    grad.addColorStop(0.15,'rgba(5,217,232,0.25)');
-    grad.addColorStop(1,'rgba(5,217,232,0)');
-    ctx.fillStyle=grad;
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,this.beamLen, -0.18, 0.18); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,this.beamLen, Math.PI-0.18, Math.PI+0.18); ctx.closePath(); ctx.fill();
-    ctx.restore();
-  }
-}
-
-class BlackHole extends Body{
-  constructor(x,y){ super(x,y,3000,18,'#000'); this.eventHorizon=22; this.disc=new AccretionDisc(this); }
-  update(){ this.disc.update(); }
-  draw(ctx){
-    this.disc.draw(ctx);
-    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.eventHorizon*3);
-    g.addColorStop(0,'#000'); g.addColorStop(0.45,'#000'); g.addColorStop(0.55,'rgba(255,80,180,0.6)'); g.addColorStop(1,'rgba(255,80,180,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon*3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='rgba(180,80,255,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon+2,0,Math.PI*2); ctx.stroke();
-  }
-}
-
-class AccretionDisc{
-  constructor(host){ this.host=host; this.particles=[]; for(let i=0;i<160;i++){ this.particles.push({ r: 28+Math.random()*48, theta: Math.random()*Math.PI*2, speed: 0.002+Math.random()*0.005, size:1+Math.random()*2, color: Math.random()<0.5?'#ff2a6d':'#ffae00' }); } }
-  update(){ for(let p of this.particles){ p.theta+=p.speed; } }
-  draw(ctx){
-    ctx.save();
-    ctx.globalCompositeOperation='screen';
-    for(let p of this.particles){
-      const x=this.host.x+Math.cos(p.theta)*p.r;
-      const y=this.host.y+Math.sin(p.theta)*p.r*0.55;
-      const alpha=1-(p.r-28)/48;
-      ctx.fillStyle=p.color; ctx.globalAlpha=alpha*0.8;
-      ctx.beginPath(); ctx.arc(x,y,p.size,0,Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-  }
-}
-
-class Planet extends Body{
-  constructor(x,y){ super(x,y,12,5,'#00ff9d'); this.host=null; this.setOrbit(); }
-  setOrbit(){
-    let best=null, bestD=Infinity;
-    for(let o of objects){ if(o instanceof BlackHole || o instanceof Star){ const d=this.dist(o); if(d<bestD && d<250){ bestD=d; best=o; } } }
-    if(best){
-      const dx=this.x-best.x, dy=this.y-best.y, d=Math.hypot(dx,dy)||1;
-      const v=Math.sqrt(G*best.mass/d);
-      this.vx=-(dy/d)*v; this.vy=(dx/d)*v;
-    } else {
-      this.vx=(Math.random()-0.5)*2; this.vy=(Math.random()-0.5)*2;
-    }
-  }
-  draw(ctx){
-    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.radius*3);
-    g.addColorStop(0,this.color); g.addColorStop(1,'rgba(0,255,157,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius*3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#ccfff0'; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius+2,0,Math.PI*2); ctx.stroke();
-  }
-}
-
-function applyGravity(){
-  for(let bh of objects){
-    if(!(bh instanceof BlackHole)) continue;
-    for(let obj of objects){
-      if(obj===bh || obj.dead) continue;
-      if(!(obj instanceof Star) && !(obj instanceof Planet) && !(obj instanceof Pulsar)) continue;
-      const dx=bh.x-obj.x, dy=bh.y-obj.y, d=Math.hypot(dx,dy);
-      if(d<bh.eventHorizon+obj.radius){ obj.dead=true; continue; }
-      const f=G*bh.mass/(d*d); const fx=(dx/d)*f, fy=(dy/d)*f;
-      obj.vx+=fx; obj.vy+=fy;
-    }
-  }
-}
-
-function drawBackground(){
-  const g=ctx.createLinearGradient(0,0,0,height);
-  g.addColorStop(0,'#05061a'); g.addColorStop(1,'#0f1133');
-  ctx.fillStyle=g; ctx.fillRect(0,0,width,height);
-  ctx.save(); ctx.globalAlpha=0.4;
-  for(let i=0;i<60;i++){
-    const sx=(Math.sin(i*12.3)*0.5+0.5)*width, sy=(Math.cos(i*7.7)*0.5+0.5)*height, sz=1+(i%3);
-    ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(sx,sy,sz,0,Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
-}
-
-function spawnObject(x,y){
-  if(tool==='star') objects.push(new Star(x,y));
-  else if(tool==='planet') objects.push(new Planet(x,y));
-  else if(tool==='blackhole') objects.push(new BlackHole(x,y));
-  else if(tool==='pulsar') objects.push(new Pulsar(x,y));
-}
-
-canvas.addEventListener('pointerdown',e=>{ const rect=canvas.getBoundingClientRect(); spawnObject(e.clientX-rect.left,e.clientY-rect.top); });
-
-function loop(){
-  drawBackground();
-  applyGravity();
-  for(let o of objects){ o.update(); if(!(o instanceof BlackHole)) o.bounds(); }
-  objects=objects.filter(o=>!o.dead);
-  for(let o of objects){ o.draw(ctx); }
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-</body>
-</html>
-
-<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CosmoQuest - Astronomia Interativa</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Funky Geo Quest — Portal de Astronomia</title>
   <style>
     :root {
-      --azul-ceu: #7fd3ff;
-      --azul-profundo: #1a3c5a;
-      --amarelo: #ffe14d;
-      --amarelo-claro: #fff6a8;
-      --roxo: #c5a3ff;
-      --roxo-profundo: #7a5fb0;
-      --rosa: #ffb3d9;
-      --verde-lima: #baffc9;
-      --branco: #ffffff;
-      --sombra: 0 8px 0 rgba(0, 0, 0, 0.15);
-      --sombra-hover: 0 5px 0 rgba(0, 0, 0, 0.15);
-      --raio: 24px;
+      --sky: #A0D8EF;
+      --sun: #FFE66D;
+      --galactic: #B8A5E0;
+      --pink: #FFB7C5;
+      --mint: #A8E6CF;
+      --dark: #2B2B40;
+      --light: #FFF9F0;
+      --shadow: rgba(0,0,0,0.15);
     }
 
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: 'Quicksand', sans-serif;
-      background: linear-gradient(135deg, #7fd3ff 0%, #c5a3ff 50%, #ffe14d 100%);
+      font-family: 'Comic Sans MS', 'Fredoka', 'Nunito', sans-serif;
+      background: linear-gradient(135deg, var(--sky) 0%, var(--galactic) 50%, var(--sun) 100%);
       min-height: 100vh;
-      color: var(--azul-profundo);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+      color: var(--dark);
     }
 
+    /* Header & Nav */
     header {
-      text-align: center;
-      margin-bottom: 24px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 6px 0 var(--shadow);
+      border-radius: 0 0 24px 24px;
     }
-
-    h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 700;
-      margin: 0;
-      text-shadow: 3px 3px 0 var(--amarelo);
-    }
-
-    .tagline {
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-top: 8px;
-      background: rgba(255, 255, 255, 0.6);
-      display: inline-block;
-      padding: 8px 18px;
-      border-radius: 50px;
-    }
-
-    .mode-switcher {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 24px;
-    }
-
-    .btn {
-      border: none;
-      font-family: 'Quicksand', sans-serif;
-      font-weight: 700;
-      font-size: 1.1rem;
-      padding: 14px 28px;
-      border-radius: 50px;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-      box-shadow: var(--sombra);
-      background: var(--amarelo);
-      color: var(--azul-profundo);
-      outline: none;
-    }
-
-    .btn:active {
-      transform: translateY(5px);
-      box-shadow: var(--sombra-hover);
-    }
-
-    .btn.active {
-      background: var(--roxo);
-      color: var(--branco);
-    }
-
-    .btn-roxo {
-      background: var(--roxo);
-      color: var(--branco);
-    }
-
-    .btn-azul {
-      background: var(--azul-ceu);
-      color: var(--azul-profundo);
-    }
-
-    .container {
-      width: 100%;
-      max-width: 1100px;
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(8px);
-      border-radius: var(--raio);
-      padding: 24px;
-      box-shadow: 0 12px 0 rgba(0, 0, 0, 0.1);
-      margin-bottom: 24px;
-    }
-
-    .section-title {
-      font-size: 1.6rem;
-      font-weight: 700;
-      margin: 0 0 18px 0;
-      color: var(--roxo-profundo);
-    }
-
-    /* PLAY MODE */
-    .play-layout {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 24px;
-      align-items: start;
-    }
-
-    @media (max-width: 800px) {
-      .play-layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .canvas-wrapper {
-      position: relative;
-      border-radius: var(--raio);
-      overflow: hidden;
-      box-shadow: var(--sombra);
-      background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f23 100%);
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 420px;
-      cursor: crosshair;
-    }
-
-    .canvas-overlay {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.95rem;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-      pointer-events: none;
-    }
-
-    .controls {
-      background: var(--amarelo-claro);
-      border-radius: var(--raio);
-      padding: 20px;
-      box-shadow: var(--sombra);
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .controls h3 {
-      margin: 0;
-      font-size: 1.2rem;
-      color: var(--azul-profundo);
-    }
-
-    .obj-selector {
-      display: flex;
-      gap: 10px;
-    }
-
-    .obj-btn {
-      flex: 1;
-      padding: 10px;
-      font-size: 0.95rem;
-      border-radius: 18px;
-      border: 3px solid transparent;
-    }
-
-    .obj-btn.selected {
-      border-color: var(--azul-profundo);
-      transform: translateY(3px);
-      box-shadow: var(--sombra-hover);
-    }
-
-    .slider-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .slider-group label {
-      font-weight: 700;
+    .nav-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
-
-    .slider-group input[type="range"] {
-      width: 100%;
-      accent-color: var(--roxo-profundo);
+    .logo {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--galactic);
+      text-shadow: 2px 2px 0 var(--sun);
     }
-
-    .value-display {
+    nav { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+    nav button {
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 999px;
       font-weight: 700;
-      color: var(--roxo-profundo);
-      background: rgba(255,255,255,0.7);
-      padding: 2px 10px;
-      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      background: var(--mint);
+      color: var(--dark);
+      box-shadow: 0 5px 0 #7EC8A9;
+    }
+    nav button:hover { transform: translateY(-2px); }
+    nav button:active { transform: translateY(3px); box-shadow: 0 2px 0 #7EC8A9; }
+    nav button.active { background: var(--sun); box-shadow: 0 5px 0 #E6C84D; }
+
+    /* Main container */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
     }
 
-    .action-buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .action-buttons .btn {
-      flex: 1;
-      min-width: 100px;
-    }
-
-    .info-card {
-      background: rgba(255, 255, 255, 0.7);
-      border-radius: 18px;
-      padding: 14px;
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-
-    .info-card strong {
-      color: var(--roxo-profundo);
-    }
-
-    /* ESTUDO MODE */
-    .grade-tabs {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 18px;
-    }
-
-    .grade-content {
+    section.page {
       display: none;
-      animation: fadeIn 0.3s ease;
+      animation: popIn 0.5s ease-out;
+    }
+    section.page.active { display: block; }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    .grade-content.active {
+    /* Cards */
+    .card {
+      background: rgba(255,255,255,0.92);
+      border-radius: 28px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 0 var(--shadow), 0 14px 28px rgba(0,0,0,0.12);
+      border: 3px solid rgba(255,255,255,0.6);
+    }
+    .card h1, .card h2, .card h3 { margin-bottom: 1rem; }
+    .card h1 { font-size: 2.4rem; color: var(--galactic); text-shadow: 2px 2px 0 var(--sun); }
+    .card h2 { color: #4A6FA5; }
+    .card p { line-height: 1.6; margin-bottom: 1rem; }
+
+    .bubble-btn {
+      display: inline-block;
+      border: none;
+      padding: 0.85rem 1.6rem;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin: 0.4rem 0.4rem 0.4rem 0;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.18);
+    }
+    .bubble-btn:hover { transform: translateY(-3px); }
+    .bubble-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.18); }
+    .btn-sky { background: var(--sky); color: #1E3A5F; }
+    .btn-sun { background: var(--sun); color: #5A4A1F; }
+    .btn-galactic { background: var(--galactic); color: #FFF; }
+    .btn-pink { background: var(--pink); color: #6A1E2E; }
+    .btn-mint { background: var(--mint); color: #1E4535; }
+
+    /* Home */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: center;
+    }
+    .hero-text { font-size: 1.1rem; }
+    .hero-visual {
+      background: linear-gradient(160deg, #2B2B40, #4A3B6B);
+      border-radius: 28px;
+      height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+    }
+    .hero-planet {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #FFE66D, #FFB7C5, #A0D8EF, #2B2B40);
+      box-shadow: 0 0 40px rgba(255,255,255,0.4);
+      animation: float 4s ease-in-out infinite;
+    }
+    .hero-ring {
+      position: absolute;
+      width: 180px; height: 40px;
+      border: 8px solid rgba(255,255,255,0.35);
+      border-radius: 50%;
+      transform: rotate(-20deg);
+      animation: float 4s ease-in-out infinite reverse;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+    .feature-card {
+      background: var(--light);
+      border-radius: 24px;
+      padding: 1.2rem;
+      box-shadow: 0 8px 0 var(--shadow);
+      border-left: 8px solid var(--pink);
+    }
+    .feature-card:nth-child(2) { border-left-color: var(--sun); }
+    .feature-card:nth-child(3) { border-left-color: var(--mint); }
+    .feature-card:nth-child(4) { border-left-color: var(--galactic); }
+
+    /* Simulator */
+    .sim-wrap {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .canvas-box {
+      position: relative;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 12px 0 var(--shadow), 0 18px 30px rgba(0,0,0,0.25);
+      border: 4px solid rgba(255,255,255,0.7);
+    }
+    canvas#spaceCanvas {
+      width: 100%;
+      height: 600px;
       display: block;
+      background: #0B0B18;
+      cursor: crosshair;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
     }
+    .control-group {
+      background: var(--light);
+      border-radius: 22px;
+      padding: 1.1rem;
+      box-shadow: 0 8px 0 var(--shadow);
+    }
+    .control-group label { display: block; font-weight: 700; margin-bottom: 0.6rem; color: #4A3B6B; }
+    .control-group input[type="range"] {
+      width: 100%;
+      accent-color: var(--galactic);
+      cursor: pointer;
+    }
+    .control-group .value { display: inline-block; margin-top: 0.3rem; font-weight: 800; color: var(--galactic); }
+    .spawn-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .spawn-btns .bubble-btn { margin: 0; }
+    .reset-row { display: flex; gap: 0.5rem; }
+    .legend { font-size: 0.85rem; color: #555; margin-top: 0.5rem; }
 
-    .cards-grid {
+    /* Study */
+    .year-tabs { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .year-tab {
+      border: none;
+      padding: 0.8rem 1.3rem;
+      border-radius: 999px;
+      font-weight: 800;
+      cursor: pointer;
+      background: var(--light);
+      box-shadow: 0 5px 0 var(--shadow);
+      transition: transform 0.15s;
+    }
+    .year-tab.active { background: var(--sun); transform: translateY(-2px); }
+    .year-tab:hover { transform: translateY(-2px); }
+    .year-section { display: none; }
+    .year-section.active { display: block; animation: popIn 0.4s ease-out; }
+    .topic-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      gap: 1.2rem;
     }
-
-    .card {
-      background: linear-gradient(135deg, var(--azul-ceu), var(--verde-lima));
-      border-radius: var(--raio);
-      padding: 18px;
-      box-shadow: var(--sombra);
-      transition: transform 0.2s ease;
+    .topic-card {
+      background: var(--light);
+      border-radius: 24px;
+      padding: 1.3rem;
+      box-shadow: 0 8px 0 var(--shadow);
     }
+    .topic-card h4 { color: var(--galactic); margin-bottom: 0.5rem; }
+    .topic-card ul { padding-left: 1.2rem; margin-bottom: 1rem; }
+    .topic-card li { margin-bottom: 0.4rem; }
 
-    .card:nth-child(2n) {
-      background: linear-gradient(135deg, var(--rosa), var(--amarelo-claro));
+    /* Responsive */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .sim-wrap { grid-template-columns: 1fr; }
+      .controls { order: 2; }
+      .canvas-box { order: 1; }
+      canvas#spaceCanvas { height: 450px; }
     }
-
-    .card:nth-child(3n) {
-      background: linear-gradient(135deg, var(--roxo), var(--azul-ceu));
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-    }
-
-    .card h4 {
-      margin: 0 0 10px 0;
-      font-size: 1.15rem;
-    }
-
-    .card p {
-      margin: 0 0 14px 0;
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-
-    .card a {
-      display: inline-block;
-      text-decoration: none;
-      background: var(--branco);
-      color: var(--azul-profundo);
-      padding: 8px 14px;
-      border-radius: 50px;
-      font-weight: 700;
-      box-shadow: 0 4px 0 rgba(0,0,0,0.1);
-    }
-
-    .card a:hover {
-      box-shadow: 0 2px 0 rgba(0,0,0,0.1);
-      transform: translateY(2px);
-    }
-
-    .hidden {
-      display: none !important;
+    @media (max-width: 600px) {
+      .nav-wrap { justify-content: center; }
+      .logo { width: 100%; text-align: center; }
+      .card { padding: 1.2rem; border-radius: 24px; }
+      .card h1 { font-size: 1.7rem; }
+      canvas#spaceCanvas { height: 360px; }
     }
 
     footer {
       text-align: center;
+      padding: 2rem;
+      color: #4A3B6B;
       font-weight: 700;
-      color: var(--azul-profundo);
-      opacity: 0.8;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🌟 CosmoQuest 🚀</h1>
-    <div class="tagline">Astronomia interativa no estilo Funky Geo Quest!</div>
-  </header>
 
-  <div class="mode-switcher">
-    <button id="btnPlay" class="btn active" onclick="setMode('play')">🎮 Modo Play</button>
-    <button id="btnEstudo" class="btn btn-roxo" onclick="setMode('estudo')">📚 Modo Estudo</button>
+<header>
+  <div class="nav-wrap">
+    <div class="logo">🚀 Funky Geo Quest</div>
+    <nav>
+      <button class="nav-btn active" data-target="home">🏠 Home</button>
+      <button class="nav-btn" data-target="simulator">🎮 Simulador (Play)</button>
+      <button class="nav-btn" data-target="study">📚 Modo Estudo</button>
+    </nav>
   </div>
+</header>
 
-  <!-- MODO PLAY -->
-  <section id="playSection" class="container">
-    <h2 class="section-title">🎮 Mundo Aberto: Simulador Celeste</h2>
-    <div class="play-layout">
-      <div class="canvas-wrapper">
-        <canvas id="spaceCanvas" width="720" height="420"></canvas>
-        <div class="canvas-overlay">Clique no canvas para adicionar objetos</div>
+<main>
+  <!-- HOME -->
+  <section id="home" class="page active">
+    <div class="card">
+      <div class="hero-grid">
+        <div class="hero-text">
+          <h1>Explore o Universo!</h1>
+          <p>Bem-vindo ao <strong>Funky Geo Quest</strong>, o portal de astronomia onde você joga, simula e aprende sobre planetas, estrelas, buracos negros e pulsares.</p>
+          <p>Alterne entre o <strong>Simulador</strong> para criar astros e observar a gravidade, ou o <strong>Modo Estudo</strong> para reforçar o conteúdo do 6º ao 9º ano.</p>
+          <button class="bubble-btn btn-sun" onclick="goTo('simulator')">🌌 Ir para o Simulador</button>
+          <button class="bubble-btn btn-galactic" onclick="goTo('study')">📖 Ir para o Estudo</button>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-ring"></div>
+          <div class="hero-planet"></div>
+        </div>
       </div>
+      <div class="feature-grid">
+        <div class="feature-card"><strong>🎮 Simulador 3D</strong><p>Crie buracos negros, planetas e pulsares com gravidade realista.</p></div>
+        <div class="feature-card"><strong>🧠 Modo Estudo</strong><p>Resumos teóricos organizados por série do ensino fundamental.</p></div>
+        <div class="feature-card"><strong>🎨 Visual Funky</strong><p>Cores pastéis, bordas arredondadas e botões estilo bubble 3D.</p></div>
+        <div class="feature-card"><strong>📱 Responsivo</strong><p>Funciona bem em desktop, tablet e celular.</p></div>
+      </div>
+    </div>
+  </section>
 
+  <!-- SIMULADOR -->
+  <section id="simulator" class="page">
+    <div class="card">
+      <h2>🎮 Simulador do Cosmos</h2>
+      <p>Ajuste os controles e clique no espaço para criar astros. Buracos negros atraem e consomem tudo por perto!</p>
+    </div>
+    <div class="sim-wrap">
+      <div class="canvas-box">
+        <canvas id="spaceCanvas" width="1000" height="600"></canvas>
+      </div>
       <div class="controls">
-        <h3>🛠️ Controles do Objeto</h3>
-
-        <div class="obj-selector">
-          <button class="btn obj-btn selected" data-type="star" onclick="selectType('star')">⭐ Estrela</button>
-          <button class="btn obj-btn" data-type="blackhole" onclick="selectType('blackhole')">🕳️ Buraco Negro</button>
+        <div class="control-group">
+          <label>🪐 Tipo de Astro</label>
+          <div class="spawn-btns">
+            <button class="bubble-btn btn-sky" onclick="setSpawn('planet')">Planeta</button>
+            <button class="bubble-btn btn-pink" onclick="setSpawn('pulsar')">Pulsar</button>
+            <button class="bubble-btn btn-sun" onclick="setSpawn('star')">Estrela</button>
+            <button class="bubble-btn btn-galactic" onclick="setSpawn('blackhole')">Buraco Negro</button>
+          </div>
+          <div class="legend">Selecionado: <span id="spawnTypeLabel" style="font-weight:800;color:#4A3B6B;">Planeta</span></div>
         </div>
 
-        <div class="slider-group">
-          <label for="massSlider">Massa <span class="value-display" id="massValue">1.0</span></label>
-          <input id="massSlider" type="range" min="0.3" max="5" step="0.1" value="1" oninput="updateFromSliders()">
+        <div class="control-group">
+          <label>⚖️ Massa <span class="value" id="massVal">50</span></label>
+          <input type="range" id="massSlider" min="10" max="200" value="50">
         </div>
 
-        <div class="slider-group">
-          <label for="sizeSlider">Tamanho <span class="value-display" id="sizeValue">40</span></label>
-          <input id="sizeSlider" type="range" min="10" max="100" step="1" value="40" oninput="updateFromSliders()">
+        <div class="control-group">
+          <label>📏 Tamanho <span class="value" id="sizeVal">30</span></label>
+          <input type="range" id="sizeSlider" min="10" max="80" value="30">
         </div>
 
-        <div class="slider-group">
-          <label for="tempSlider">Temperatura <span class="value-display" id="tempValue">5000 K</span></label>
-          <input id="tempSlider" type="range" min="2000" max="12000" step="100" value="5000" oninput="updateFromSliders()">
+        <div class="control-group">
+          <label>🌡️ Temperatura / Cor <span class="value" id="tempVal">50</span></label>
+          <input type="range" id="tempSlider" min="0" max="100" value="50">
         </div>
 
-        <div class="action-buttons">
-          <button class="btn btn-azul" onclick="clearObjects()">🧹 Limpar</button>
-          <button class="btn" onclick="addRandomObject()">🎲 Aleatório</button>
-        </div>
-
-        <div class="info-card" id="infoCard">
-          <strong>Dica:</strong> selecione o tipo de objeto, ajuste os controles e clique no canvas para colocá-lo no espaço!
+        <div class="control-group">
+          <label>✨ Ações</label>
+          <div class="reset-row">
+            <button class="bubble-btn btn-mint" onclick="resetSim()">🔄 Resetar</button>
+            <button class="bubble-btn btn-sun" onclick="togglePause()">⏯️ Pausar</button>
+          </div>
+          <div class="legend">Clique no canvas para adicionar o astro selecionado.</div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- MODO ESTUDO -->
-  <section id="estudoSection" class="container hidden">
-    <h2 class="section-title">📚 Material de Estudo por Ano</h2>
-    <div class="grade-tabs">
-      <button class="btn active" onclick="openGrade('6')">6º Ano</button>
-      <button class="btn btn-roxo" onclick="openGrade('7')">7º Ano</button>
-      <button class="btn btn-azul" onclick="openGrade('8')">8º Ano</button>
-      <button class="btn" style="background: var(--rosa);" onclick="openGrade('9')">9º Ano</button>
+  <section id="study" class="page">
+    <div class="card">
+      <h2>📚 Modo Estudo</h2>
+      <p>Escolha o ano para acessar resumos teóricos de Astronomia, com conteúdo alinhado à Base Nacional Comum Curricular.</p>
+      <div class="year-tabs">
+        <button class="year-tab active" onclick="setYear(6)">6º Ano</button>
+        <button class="year-tab" onclick="setYear(7)">7º Ano</button>
+        <button class="year-tab" onclick="setYear(8)">8º Ano</button>
+        <button class="year-tab" onclick="setYear(9)">9º Ano</button>
+      </div>
     </div>
 
-    <div id="grade-6" class="grade-content active">
-      <div class="cards-grid">
-        <div class="card">
-          <h4>🌙 Fases da Lua</h4>
-          <p>Entenda por que a Lua muda de forma no céu ao longo do mês e como a luz solar ilumina apenas parte dela.</p>
-          <a href="https://docs.google.com/presentation/d/1" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>☀️ O Sistema Solar</h4>
-          <p>Conheça os oito planetas, o Sol, luas e asteroides que fazem parte do nosso sistema planetário.</p>
-          <a href="https://docs.google.com/presentation/d/2" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>📝 Resumo: Planetas</h4>
-          <p>Planetas rochosos (Mercúrio, Vênus, Terra, Marte) e gasosos (Júpiter, Saturno, Urano, Netuno).</p>
-          <a href="#" onclick="alert('Resumo teórico: planetas dividem-se em rochosos e gasosos.'); return false;">Ler Resumo</a>
+    <div id="year-6" class="year-section active">
+      <div class="card">
+        <h3>🌍 6º Ano — Sistema Solar e Movimentos da Terra</h3>
+        <div class="topic-grid">
+          <div class="topic-card">
+            <h4>Planetas do Sistema Solar</h4>
+            <ul>
+              <li>8 planetas: Mercúrio, Vênus, Terra, Marte, Júpiter, Saturno, Urano e Netuno.</li>
+              <li>Planetas rochosos (interiores) vs. gigantes gasosos (exteriores).</li>
+              <li>Satélites naturais, anéis e asteroides.</li>
+            </ul>
+            <button class="bubble-btn btn-sky" onclick="downloadSheet('6-planetas')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Movimentos da Terra</h4>
+            <ul>
+              <li><strong>Rotação:</strong> girar em torno de si mesma → dia e noite.</li>
+              <li><strong>Translação:</strong> orbitar o Sol → estações do ano.</li>
+              <li>Inclinação do eixo terrestre e solstícios/equinócios.</li>
+            </ul>
+            <button class="bubble-btn btn-sun" onclick="downloadSheet('6-movimentos')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Fases da Lua</h4>
+            <ul>
+              <li>Lua Nova, Crescente, Cheia e Minguante.</li>
+              <li>Eclipses solares e lunares.</li>
+              <li>Maremotriz: influência da Lua nos oceanos.</li>
+            </ul>
+            <button class="bubble-btn btn-pink" onclick="downloadSheet('6-lua')">📥 Baixar Ficha</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="grade-7" class="grade-content">
-      <div class="cards-grid">
-        <div class="card">
-          <h4>🌌 Galáxias</h4>
-          <p>Descubra como as galáxias são formadas por bilhões de estrelas, poeira e gás, incluindo a Via Láctea.</p>
-          <a href="https://docs.google.com/presentation/d/3" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>⭐ Nascimento das Estrelas</h4>
-          <p>Estrelas nascem de nebulosas e podem viver bilhões de anos dependendo da sua massa.</p>
-          <a href="https://docs.google.com/presentation/d/4" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>📝 Resumo: Estrelas</h4>
-          <p>Estrelas são esferas de plasma que geram energia pela fusão nuclear no núcleo.</p>
-          <a href="#" onclick="alert('Resumo teórico: estrelas produzem luz e calor por reações nucleares.'); return false;">Ler Resumo</a>
-        </div>
-      </div>
-    </div>
-
-    <div id="grade-8" class="grade-content">
-      <div class="cards-grid">
-        <div class="card">
-          <h4>🕳️ Buracos Negros</h4>
-          <p>Aprenda o que acontece quando uma estrela muito massiva colapsa e a gravidade se torna inescapável.</p>
-          <a href="https://docs.google.com/presentation/d/5" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>🌠 Cometas e Asteroides</h4>
-          <p>Objetos rochosos e gelados que viajam pelo espaço e podem deixar rastros brilhantes perto do Sol.</p>
-          <a href="https://docs.google.com/presentation/d/6" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>📝 Resumo: Gravidade</h4>
-          <p>A gravidade governa o movimento dos corpos celestes e molda buracos negros e galáxias.</p>
-          <a href="#" onclick="alert('Resumo teórico: buracos negros têm gravidade tão forte que a luz não escapa.'); return false;">Ler Resumo</a>
+    <div id="year-7" class="year-section">
+      <div class="card">
+        <h3>🌞 7º Ano — Sol, Estrelas e Constelações</h3>
+        <div class="topic-grid">
+          <div class="topic-card">
+            <h4>O Sol: Nossa Estrela</h4>
+            <ul>
+              <li>Estrela do tipo amarelo-anã, composta principalmente de hidrogênio e hélio.</li>
+              <li>Fusão nuclear libera energia e luz.</li>
+              <li>Manchas solares, explosões solares e vento solar.</li>
+            </ul>
+            <button class="bubble-btn btn-sun" onclick="downloadSheet('7-sol')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Estrelas e Constelações</h4>
+            <ul>
+              <li>Diferenças de tamanho, cor, temperatura e brilho.</li>
+              <li>Constelações: agrupamentos históricos usados para navegação.</li>
+              <li>Via Láctea e galáxias.</li>
+            </ul>
+            <button class="bubble-btn btn-galactic" onclick="downloadSheet('7-estrelas')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Escalas no Universo</h4>
+            <ul>
+              <li>Unidade Astronômica (UA), ano-luz e parsec.</li>
+              <li>Comparando distâncias no Sistema Solar.</li>
+              <li>O enorme vazio entre os astros.</li>
+            </ul>
+            <button class="bubble-btn btn-mint" onclick="downloadSheet('7-escalas')">📥 Baixar Ficha</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="grade-9" class="grade-content">
-      <div class="cards-grid">
-        <div class="card">
-          <h4>🌌 Expansão do Universo</h4>
-          <p>O universo está em expansão: galáxias distantes se afastam umas das outras desde o Big Bang.</p>
-          <a href="https://docs.google.com/presentation/d/7" target="_blank">Ver Slides</a>
+    <div id="year-8" class="year-section">
+      <div class="card">
+        <h3>🌌 8º Ano — Galáxias, Buracos Negros e Nebulosas</h3>
+        <div class="topic-grid">
+          <div class="topic-card">
+            <h4>Galáxias</h4>
+            <ul>
+              <li>Via Láctea, Andrômeda e galáxias elípticas, espirais e irregulares.</li>
+              <li>Núcleo galáctico, braços espirais e halo estelar.</li>
+              <li>Grupos e aglomerados de galáxias.</li>
+            </ul>
+            <button class="bubble-btn btn-galactic" onclick="downloadSheet('8-galaxias')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Buracos Negros</h4>
+            <ul>
+              <li>Formação a partir do colapso de estrelas massivas.</li>
+              <li>Horizonte de eventos: ponto de não retorno.</li>
+              <li>Discos de acreção e jatos relativísticos.</li>
+            </ul>
+            <button class="bubble-btn btn-pink" onclick="downloadSheet('8-buracos')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Nebulosas e Estrelas Jovens</h4>
+            <ul>
+              <li>Nuvens de gás e poeira onde nascem estrelas.</li>
+              <li>Nebulosas planetárias e remanescentes de supernova.</li>
+              <li>Ciclo de vida das estrelas.</li>
+            </ul>
+            <button class="bubble-btn btn-sky" onclick="downloadSheet('8-nebulosas')">📥 Baixar Ficha</button>
+          </div>
         </div>
-        <div class="card">
-          <h4>🔭 Leis de Kepler</h4>
-          <p>As órbitas planetárias são elipses e seus movimentos seguem relações matemáticas elegantes.</p>
-          <a href="https://docs.google.com/presentation/d/8" target="_blank">Ver Slides</a>
-        </div>
-        <div class="card">
-          <h4>📝 Resumo: Cosmologia</h4>
-          <p>Cosmologia estuda a origem, evolução e estrutura em grande escala do universo.</p>
-          <a href="#" onclick="alert('Resumo teórico: o Big Bang é o modelo científico que descreve a origem do universo.'); return false;">Ler Resumo</a>
+      </div>
+    </div>
+
+    <div id="year-9" class="year-section">
+      <div class="card">
+        <h3>🚀 9º Ano — Cosmologia, Astronomia Moderna e Tecnologia</h3>
+        <div class="topic-grid">
+          <div class="topic-card">
+            <h4>Big Bang e Expansão do Universo</h4>
+            <ul>
+              <li>Origem do universo há cerca de 13,8 bilhões de anos.</li>
+              <li>Expansão acelerada e lei de Hubble.</li>
+              <li>Radiação cósmica de fundo e evidências.</li>
+            </ul>
+            <button class="bubble-btn btn-galactic" onclick="downloadSheet('9-bigbang')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Pulsares e Estrelas de Nêutrons</h4>
+            <ul>
+              <li>Estrelas extremamente densas e compactas.</li>
+              <li>Pulsares emitem feixes de rádio como faróis giratórios.</li>
+              <li>Magnetares e supernovas.</li>
+            </ul>
+            <button class="bubble-btn btn-pink" onclick="downloadSheet('9-pulsares')">📥 Baixar Ficha</button>
+          </div>
+          <div class="topic-card">
+            <h4>Tecnologia Astronômica</h4>
+            <ul>
+              <li>Telescópios terrestres e espaciais (Hubble, James Webb).</li>
+              <li>Espectroscopia e detecção de exoplanetas.</li>
+              <li>Exploração espacial e missões robóticas.</li>
+            </ul>
+            <button class="bubble-btn btn-sun" onclick="downloadSheet('9-tecnologia')">📥 Baixar Ficha</button>
+          </div>
         </div>
       </div>
     </div>
   </section>
+</main>
 
-  <footer>
-    Feito com 💫 para explorar o cosmos | CosmoQuest
-  </footer>
+<footer>
+  🌠 Funky Geo Quest — Astronomia Interativa para o Ensino Fundamental 🌠
+</footer>
 
-  <script>
-    // Modo de exibição
-    function setMode(mode) {
-      const playSection = document.getElementById('playSection');
-      const estudoSection = document.getElementById('estudoSection');
-      const btnPlay = document.getElementById('btnPlay');
-      const btnEstudo = document.getElementById('btnEstudo');
+<script>
+  /* =============== NAVEGAÇÃO =============== */
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const pages = document.querySelectorAll('.page');
 
-      if (mode === 'play') {
-        playSection.classList.remove('hidden');
-        estudoSection.classList.add('hidden');
-        btnPlay.classList.add('active');
-        btnEstudo.classList.remove('active');
-        resizeCanvas();
-      } else {
-        playSection.classList.add('hidden');
-        estudoSection.classList.remove('hidden');
-        btnPlay.classList.remove('active');
-        btnEstudo.classList.add('active');
-      }
+  function goTo(target) {
+    navBtns.forEach(b => b.classList.remove('active'));
+    pages.forEach(p => p.classList.remove('active'));
+    document.querySelector(`.nav-btn[data-target="${target}"]`)?.classList.add('active');
+    document.getElementById(target)?.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => goTo(btn.dataset.target));
+  });
+
+  /* =============== MODO ESTUDO =============== */
+  function setYear(year) {
+    document.querySelectorAll('.year-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.year-section').forEach(s => s.classList.remove('active'));
+    document.querySelector(`.year-tab:nth-child(${year - 5})`)?.classList.add('active');
+    document.getElementById('year-' + year)?.classList.add('active');
+  }
+
+  function downloadSheet(id) {
+    // Simulação de download: cria um arquivo de texto simples
+    const title = `Ficha de Estudo - ${id}`;
+    const content = `${title}\n\nAqui estão os principais conceitos deste tópico.\n\n1. Leia o resumo acima.\n2. Responda as questões no caderno.\n3. Explore o simulador para observar o fenômeno na prática!`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /* =============== SIMULADOR =============== */
+  const canvas = document.getElementById('spaceCanvas');
+  const ctx = canvas.getContext('2d');
+  let width, height;
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  let paused = false;
+  let spawnType = 'planet';
+  let objects = [];
+  let stars = [];
+
+  // Sliders
+  const massSlider = document.getElementById('massSlider');
+  const sizeSlider = document.getElementById('sizeSlider');
+  const tempSlider = document.getElementById('tempSlider');
+  const massVal = document.getElementById('massVal');
+  const sizeVal = document.getElementById('sizeVal');
+  const tempVal = document.getElementById('tempVal');
+  const spawnLabel = document.getElementById('spawnTypeLabel');
+
+  const labels = { planet: 'Planeta', pulsar: 'Pulsar', star: 'Estrela', blackhole: 'Buraco Negro' };
+
+  function updateSliderLabels() {
+    massVal.textContent = massSlider.value;
+    sizeVal.textContent = sizeSlider.value;
+    tempVal.textContent = tempSlider.value;
+  }
+  [massSlider, sizeSlider, tempSlider].forEach(s => s.addEventListener('input', updateSliderLabels));
+
+  function setSpawn(type) {
+    spawnType = type;
+    spawnLabel.textContent = labels[type] || type;
+  }
+
+  function resetSim() {
+    objects = [];
+    createBackgroundStars();
+  }
+
+  function togglePause() {
+    paused = !paused;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const mass = parseInt(massSlider.value);
+    const size = parseInt(sizeSlider.value);
+    const temp = parseInt(tempSlider.value);
+
+    if (spawnType === 'blackhole') {
+      // mantém apenas um buraco negro central para não bagunçar a física
+      objects = objects.filter(o => o.type !== 'blackhole');
+      objects.push(new BlackHole(x, y, size, mass));
+    } else if (spawnType === 'planet') {
+      objects.push(new Planet(x, y, size, mass, temp));
+    } else if (spawnType === 'pulsar') {
+      objects.push(new Pulsar(x, y, size, mass, temp));
+    } else if (spawnType === 'star') {
+      objects.push(new Star(x, y, size, mass, temp));
     }
+  });
 
-    // Abas do estudo
-    function openGrade(grade) {
-      const contents = document.querySelectorAll('.grade-content');
-      contents.forEach(c => c.classList.remove('active'));
-      document.getElementById('grade-' + grade).classList.add('active');
-
-      const tabs = document.querySelectorAll('.grade-tabs .btn');
-      tabs.forEach(t => t.classList.remove('active'));
-      event.target.classList.add('active');
-    }
-
-    // Simulador
-    const canvas = document.getElementById('spaceCanvas');
-    const ctx = canvas.getContext('2d');
-    let objects = [];
-    let selectedType = 'star';
-
-    // Estrelas de fundo
-    const stars = [];
-    for (let i = 0; i < 120; i++) {
+  function createBackgroundStars() {
+    stars = [];
+    for (let i = 0; i < 140; i++) {
       stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 1.5 + 0.5,
-        twinkle: Math.random() * Math.PI * 2
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 1.8 + 0.5,
+        twinkle: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.03 + 0.01
       });
     }
+  }
+  createBackgroundStars();
 
-    function resizeCanvas() {
-      const wrapper = canvas.parentElement;
-      canvas.width = wrapper.clientWidth;
-      canvas.height = 420;
+  // Física e objetos
+  class Astro {
+    constructor(x, y, size, mass, temp) {
+      this.x = x; this.y = y;
+      this.vx = (Math.random() - 0.5) * 1.5;
+      this.vy = (Math.random() - 0.5) * 1.5;
+      this.size = size;
+      this.mass = mass;
+      this.temp = temp;
+      this.life = 1.0;
+      this.type = 'astro';
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    function selectType(type) {
-      selectedType = type;
-      document.querySelectorAll('.obj-btn').forEach(btn => {
-        btn.classList.toggle('selected', btn.dataset.type === type);
-      });
-      updateInfo();
+    applyGravity(bh) {
+      const dx = bh.x - this.x;
+      const dy = bh.y - this.y;
+      const d2 = dx*dx + dy*dy;
+      const d = Math.sqrt(d2);
+      if (d < 5) return;
+      const G = 0.6;
+      const f = (G * bh.mass * this.mass) / d2;
+      this.vx += (dx / d) * f / this.mass;
+      this.vy += (dy / d) * f / this.mass;
     }
 
-    function updateFromSliders() {
-      const mass = parseFloat(document.getElementById('massSlider').value);
-      const size = parseInt(document.getElementById('sizeSlider').value);
-      const temp = parseInt(document.getElementById('tempSlider').value);
-
-      document.getElementById('massValue').textContent = mass.toFixed(1);
-      document.getElementById('sizeValue').textContent = size;
-      document.getElementById('tempValue').textContent = temp + ' K';
-
-      updateInfo();
-      draw();
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      // Bounce suave nas bordas
+      if (this.x < this.size || this.x > width - this.size) this.vx *= -0.85;
+      if (this.y < this.size || this.y > height - this.size) this.vy *= -0.85;
+      this.x = Math.max(this.size, Math.min(width - this.size, this.x));
+      this.y = Math.max(this.size, Math.min(height - this.size, this.y));
     }
 
-    function updateInfo() {
-      const mass = parseFloat(document.getElementById('massSlider').value);
-      const temp = parseInt(document.getElementById('tempSlider').value);
-      const info = document.getElementById('infoCard');
+    getColor() {
+      // temperatura 0 (frio) -> azul/verde; 100 (quente) -> vermelho/amarelo
+      const t = this.temp / 100;
+      const r = Math.min(255, Math.floor(255 * t + 100 * (1 - t)));
+      const g = Math.min(255, Math.floor(220 * (1 - t) + 80 * t));
+      const b = Math.min(255, Math.floor(255 * (1 - t) + 80 * t));
+      return `rgb(${r},${g},${b})`;
+    }
+  }
 
-      let text = '';
-      if (selectedType === 'star') {
-        let colorName = temp < 3500 ? 'vermelha' : temp < 5500 ? 'laranja/amarela' : temp < 8000 ? 'branca' : 'azul';
-        text = `<strong>Estrela:</strong> massa ${mass.toFixed(1)}×☉, temperatura ${temp} K. Cor típica: ${colorName}.`;
-      } else {
-        text = `<strong>Buraco Negro:</strong> massa ${mass.toFixed(1)}×☉. A luz não escapa do horizonte de eventos!`;
+  class Planet extends Astro {
+    constructor(x, y, size, mass, temp) {
+      super(x, y, size, mass, temp);
+      this.type = 'planet';
+      this.angle = Math.random() * Math.PI * 2;
+      this.orbitSpeed = (Math.random() * 0.015 + 0.005) * (Math.random() < 0.5 ? 1 : -1);
+      this.orbitRadius = 0;
+      this.orbitCenter = null;
+    }
+
+    update() {
+      const bh = objects.find(o => o.type === 'blackhole');
+      if (bh) {
+        this.orbitCenter = bh;
+        // Inicia órbita circular suave se ainda não tiver raio
+        if (!this.orbitRadius) {
+          const dx = this.x - bh.x, dy = this.y - bh.y;
+          this.orbitRadius = Math.sqrt(dx*dx + dy*dy);
+          this.angle = Math.atan2(dy, dx);
+        }
+        // Órbita automática + gravidade
+        this.angle += this.orbitSpeed;
+        const targetX = bh.x + Math.cos(this.angle) * this.orbitRadius;
+        const targetY = bh.y + Math.sin(this.angle) * this.orbitRadius;
+        this.vx += (targetX - this.x) * 0.008;
+        this.vy += (targetY - this.y) * 0.008;
+        this.vx *= 0.96; this.vy *= 0.96;
       }
-      info.innerHTML = text;
+      super.update();
     }
 
-    function getStarColor(temp) {
-      if (temp < 3500) return '#ff5e5e';
-      if (temp < 5500) return '#ffd166';
-      if (temp < 8000) return '#ffffff';
-      return '#7fd3ff';
+    draw(ctx) {
+      const c = this.getColor();
+      // volume esférico
+      const grad = ctx.createRadialGradient(this.x - this.size*0.3, this.y - this.size*0.3, this.size*0.1, this.x, this.y, this.size);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.2, c);
+      grad.addColorStop(1, 'rgba(0,0,0,0.4)');
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // atmosfera
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,255,255,0.2)`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // sombra
+      ctx.beginPath();
+      ctx.arc(this.x + this.size*0.4, this.y + this.size*0.4, this.size * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fill();
+    }
+  }
+
+  class Pulsar extends Astro {
+    constructor(x, y, size, mass, temp) {
+      super(x, y, size, mass, temp);
+      this.type = 'pulsar';
+      this.rotation = 0;
+      this.rotSpeed = 0.12;
+      this.beams = 2;
     }
 
-    function addObject(x, y) {
-      const mass = parseFloat(document.getElementById('massSlider').value);
-      const size = parseInt(document.getElementById('sizeSlider').value);
-      const temp = parseInt(document.getElementById('tempSlider').value);
-
-      objects.push({
-        type: selectedType,
-        x,
-        y,
-        mass,
-        size,
-        temp,
-        pulse: Math.random() * Math.PI * 2
-      });
-      draw();
+    update() {
+      this.rotation += this.rotSpeed;
+      const bh = objects.find(o => o.type === 'blackhole');
+      if (bh) this.applyGravity(bh);
+      super.update();
     }
 
-    function addRandomObject() {
-      const x = Math.random() * (canvas.width - 100) + 50;
-      const y = Math.random() * (canvas.height - 100) + 50;
-      addObject(x, y);
-    }
-
-    function clearObjects() {
-      objects = [];
-      draw();
-    }
-
-    canvas.addEventListener('click', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      addObject((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
-    });
-
-    function draw() {
-      // Fundo espacial
-      const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width);
-      gradient.addColorStop(0, '#1a1a2e');
-      gradient.addColorStop(1, '#0f0f23');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Estrelas de fundo
-      const time = Date.now() / 800;
-      stars.forEach(s => {
-        const alpha = 0.5 + 0.5 * Math.sin(time + s.twinkle);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    draw(ctx) {
+      const c = this.getColor();
+      // corpo
+      const grad = ctx.createRadialGradient(this.x - this.size*0.3, this.y - this.size*0.3, this.size*0.1, this.x, this.y, this.size);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, c);
+      grad.addColorStop(1, '#2a2a3a');
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // feixes de radiação
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+      for (let i = 0; i < this.beams; i++) {
+        ctx.rotate(Math.PI / this.beams);
+        const beamGrad = ctx.createLinearGradient(0, 0, 0, -250);
+        beamGrad.addColorStop(0, `rgba(255,255,255,0.8)`);
+        beamGrad.addColorStop(0.5, `rgba(${255},${255},${255},0.3)`);
+        beamGrad.addColorStop(1, `rgba(255,255,255,0)`);
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.moveTo(-this.size * 0.3, -this.size);
+        ctx.lineTo(0, -250);
+        ctx.lineTo(this.size * 0.3, -this.size);
+        ctx.fillStyle = beamGrad;
         ctx.fill();
-      });
+      }
+      ctx.restore();
+      // aura
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,255,255,0.25)`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
 
-      // Objetos celestes
-      objects.forEach(obj => {
-        const pulse = 1 + 0.05 * Math.sin(time * 2 + obj.pulse);
-        const radius = obj.size * pulse;
+  class Star extends Astro {
+    constructor(x, y, size, mass, temp) {
+      super(x, y, size, mass, temp);
+      this.type = 'star';
+      this.pulse = Math.random() * Math.PI * 2;
+    }
+    update() {
+      this.pulse += 0.05;
+      const bh = objects.find(o => o.type === 'blackhole');
+      if (bh) this.applyGravity(bh);
+      super.update();
+    }
+    draw(ctx) {
+      const c = this.getColor();
+      const r = this.size * (1 + Math.sin(this.pulse) * 0.1);
+      const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, c);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // brilho externo
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, r * 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,0.08)`;
+      ctx.fill();
+    }
+  }
 
-        if (obj.type === 'blackhole') {
-          // Disco de acreção
-          const diskGradient = ctx.createRadialGradient(obj.x, obj.y, radius * 0.6, obj.x, obj.y, radius * 2.5);
-          diskGradient.addColorStop(0, 'rgba(255, 100, 50, 0.8)');
-          diskGradient.addColorStop(0.5, 'rgba(255, 180, 50, 0.4)');
-          diskGradient.addColorStop(1, 'rgba(255, 180, 50, 0)');
-          ctx.fillStyle = diskGradient;
-          ctx.beginPath();
-          ctx.arc(obj.x, obj.y, radius * 2.5, 0, Math.PI * 2);
-          ctx.fill();
+  class BlackHole {
+    constructor(x, y, size, mass) {
+      this.x = x; this.y = y;
+      this.size = size * 1.5;
+      this.mass = mass * 4;
+      this.type = 'blackhole';
+      this.spin = 0;
+      this.consumeAnim = 0;
+    }
+    update() {
+      this.spin += 0.03;
+      this.consumeAnim += 0.08;
+    }
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      // Disco de acreção inclinado
+      ctx.rotate(0.35);
+      const diskW = this.size * 5;
+      const diskH = this.size * 1.0;
+      const diskGrad = ctx.createRadialGradient(0, 0, this.size * 0.6, 0, 0, diskW);
+      diskGrad.addColorStop(0, 'rgba(255,140,0,0.9)');
+      diskGrad.addColorStop(0.2, 'rgba(255,80,120,0.7)');
+      diskGrad.addColorStop(0.5, 'rgba(180,60,200,0.35)');
+      diskGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath();
+      ctx.ellipse(0, 0, diskW, diskH, 0, 0, Math.PI * 2);
+      ctx.fillStyle = diskGrad;
+      ctx.fill();
+      // Linha brilhante do disco
+      ctx.beginPath();
+      ctx.ellipse(0, 0, diskW * 0.9, diskH * 0.85, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,200,100,0.4)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.rotate(-0.35);
+      // Horizonte de eventos
+      const bhGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+      bhGrad.addColorStop(0, '#000000');
+      bhGrad.addColorStop(0.85, '#0a0a14');
+      bhGrad.addColorStop(1, '#2a1a40');
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = bhGrad;
+      ctx.fill();
+      // Borda lente gravitacional
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Efeito de consumo
+      const pulse = 1 + Math.sin(this.consumeAnim) * 0.08;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 1.2 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,100,180,0.12)`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 
-          // Buraco negro
-          ctx.fillStyle = '#000000';
-          ctx.beginPath();
-          ctx.arc(obj.x, obj.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Brilho da borda
-          ctx.strokeStyle = `rgba(255, 180, 80, ${0.3 + 0.2 * Math.sin(time * 3)})`;
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        } else {
-          // Aura estelar
-          const starColor = getStarColor(obj.temp);
-          const glow = ctx.createRadialGradient(obj.x, obj.y, radius * 0.5, obj.x, obj.y, radius * 2.5 * obj.mass);
-          glow.addColorStop(0, starColor);
-          glow.addColorStop(0.5, hexToRgba(starColor, 0.3));
-          glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          ctx.fillStyle = glow;
-          ctx.beginPath();
-          ctx.arc(obj.x, obj.y, radius * 2.5 * obj.mass, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Núcleo
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(obj.x, obj.y, radius * 0.7, 0, Math.PI * 2);
-          ctx.fill();
+  function checkCollisions() {
+    const bhs = objects.filter(o => o.type === 'blackhole');
+    for (const bh of bhs) {
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const o = objects[i];
+        if (o === bh) continue;
+        const dx = o.x - bh.x, dy = o.y - bh.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < bh.size + o.size * 0.5) {
+          // consome o objeto
+          objects.splice(i, 1);
+          bh.size = Math.min(bh.size + 1.5, 80);
+          bh.mass += o.mass * 0.2;
         }
-      });
+      }
+    }
+  }
 
-      requestAnimationFrame(draw);
+  function drawBackground() {
+    // fundo espacial dinâmico
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+    bgGrad.addColorStop(0, '#0B0B18');
+    bgGrad.addColorStop(1, '#1A1230');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // estrelas de fundo piscando
+    for (const s of stars) {
+      s.twinkle += s.speed;
+      const alpha = 0.3 + Math.abs(Math.sin(s.twinkle)) * 0.7;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
     }
 
-    function hexToRgba(hex, alpha) {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    // nebulosa sutil
+    const nebGrad = ctx.createRadialGradient(width * 0.7, height * 0.3, 0, width * 0.7, height * 0.3, width * 0.6);
+    nebGrad.addColorStop(0, 'rgba(120,80,180,0.12)');
+    nebGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = nebGrad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function loop() {
+    if (!paused) {
+      drawBackground();
+      for (const obj of objects) obj.update();
+      checkCollisions();
+      for (const obj of objects) obj.draw(ctx);
     }
+    requestAnimationFrame(loop);
+  }
+  loop();
 
-    // Inicialização
-    updateFromSliders();
-    draw();
-  </script>
-</body>
-</html>
+  // Cenário inicial
+  objects.push(new BlackHole(width/2, height/2, 35, 100));
+  for (let i = 0; i < 3; i++) {
+    objects.push(new Planet(width/2 + 160 + i*50, height/2 + (i%2)*40, 22 + i*3, 40, 30 + i*20));
+  }
+  objects.push(new Pulsar(width/4, height/3, 18, 60, 70));
+  objects.push(new Star(width*0.75, height*0.7, 16, 30, 90));
+</script>
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CosmoQuest — Simulador 3D Volumétrico</title>
-  <style>
-    :root {
-      --bg: #0b0b1f;
-      --panel: rgba(18, 18, 44, 0.85);
-      --accent: #ff2d95;
-      --accent2: #2de0ff;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      overflow: hidden;
-      background: var(--bg);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: #fff;
-    }
-    canvas { display: block; width: 100vw; height: 100vh; }
-    .hud {
-      position: fixed; top: 14px; left: 14px;
-      background: var(--panel);
-      backdrop-filter: blur(8px);
-      border: 2px solid var(--accent);
-      border-radius: 18px;
-      padding: 16px 20px;
-      max-width: 320px;
-      box-shadow: 0 0 22px rgba(255, 45, 149, 0.35);
-    }
-    .hud h1 {
-      font-size: 1.35rem;
-      margin-bottom: 6px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--accent2);
-      text-shadow: 0 0 10px var(--accent2);
-    }
-    .hud p { font-size: 0.85rem; opacity: 0.85; line-height: 1.4; }
-    .badge {
-      display: inline-block; margin-top: 8px; margin-right: 6px;
-      padding: 4px 10px; border-radius: 20px; font-size: 0.7rem;
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
-    }
-    .controls {
-      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
-    }
-    button {
-      background: linear-gradient(135deg, #2de0ff, #ff2d95);
-      border: none; color: #fff; font-weight: 700; text-transform: uppercase;
-      padding: 10px 18px; border-radius: 30px; cursor: pointer;
-      box-shadow: 0 0 18px rgba(45, 224, 255, 0.4);
-      transition: transform .1s, filter .1s;
-      font-size: 0.75rem;
-    }
-    button:hover { transform: translateY(-2px); filter: brightness(1.15); }
-    button:active { transform: scale(0.96); }
-  </style>
-</head>
-<body>
-  <canvas id="cosmoCanvas"></canvas>
-
-  <div class="hud">
-    <h1>CosmoQuest 3D</h1>
-    <p>Simulação orbital com corpos celestes volumétricos. Arraste para orbitar, role para zoom.</p>
-    <div>
-      <span class="badge">WebGL-free</span>
-      <span class="badge">Canvas 2D</span>
-      <span class="badge">Funky Geo</span>
-    </div>
-  </div>
-
-  <div class="controls">
-    <button id="btnPause">Pausar / Retomar</button>
-    <button id="btnReset">Reiniciar</button>
-    <button id="btnAddPlanet">+ Planeta</button>
-    <button id="btnAddPulsar">+ Pulsar</button>
-  </div>
-
-  <script>
-    (function() {
-      const canvas = document.getElementById('cosmoCanvas');
-      const ctx = canvas.getContext('2d', { alpha: false });
-
-      let width, height, cx, cy;
-      function resize() {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-        cx = width / 2; cy = height / 2;
-      }
-      window.addEventListener('resize', resize);
-      resize();
-
-      // ---------------------------------------------------------------------------
-      // Funky Geo Quest palette
-      // ---------------------------------------------------------------------------
-      const PALETTE = {
-        star: { body: '#ffeeaa', glow: ['#ff4d2a', '#ff9900', '#ffcc00', '#fff'] },
-        pulsar: { body: '#d0f0ff', glow: ['#00ffff', '#0088ff', '#4400ff', '#fff'] },
-        planet: ['#ff2d95', '#2de0ff', '#a02dff', '#2dff7e', '#ffd12d', '#ff6b2d'],
-        blackhole: { disk: ['#ff5e00', '#ffae00', '#fff', '#ff00aa'], shadow: '#050005' }
-      };
-
-      // ---------------------------------------------------------------------------
-      // Utilities
-      // ---------------------------------------------------------------------------
-      const TWO_PI = Math.PI * 2;
-      function rand(min, max) { return Math.random() * (max - min) + min; }
-      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-      function lerp(a, b, t) { return a + (b - a) * t; }
-      function hexToRgb(hex) {
-        const m = hex.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16));
-        return { r: m[0], g: m[1], b: m[2] };
-      }
-      function rgba(hex, a) {
-        const c = hexToRgb(hex);
-        return `rgba(${c.r},${c.g},${c.b},${a})`;
-      }
-
-      // ---------------------------------------------------------------------------
-      // 3D light vector (fixed directional "sun" from top-left)
-      // ---------------------------------------------------------------------------
-      const LIGHT_DIR = { x: -0.65, y: -0.45, z: 0.62 };
-      const L_LEN = Math.sqrt(LIGHT_DIR.x**2 + LIGHT_DIR.y**2 + LIGHT_DIR.z**2);
-      LIGHT_DIR.x /= L_LEN; LIGHT_DIR.y /= L_LEN; LIGHT_DIR.z /= L_LEN;
-
-      // ---------------------------------------------------------------------------
-      // Base class
-      // ---------------------------------------------------------------------------
-      class CelestialBody {
-        constructor(x, y, mass, radius) {
-          this.x = x; this.y = y;
-          this.vx = 0; this.vy = 0;
-          this.mass = mass;
-          this.radius = radius;
-          this.dead = false;
-          this.angle = 0;
-          this.spin = 0;
-        }
-        update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.angle += this.spin * dt; }
-        draw(ctx) { /* subclasses implement */ }
-      }
-
-      // ---------------------------------------------------------------------------
-      // 1. Star — incandescent plasma sphere with multiple glow layers
-      // ---------------------------------------------------------------------------
-      class Star extends CelestialBody {
-        constructor(x, y, mass, radius) {
-          super(x, y, mass, radius);
-          this.spin = rand(0.05, 0.2);
-          this.pulsePhase = rand(0, TWO_PI);
-          this.pulseSpeed = rand(0.8, 2.2);
-          this.color = PALETTE.star.body;
-          this.glows = PALETTE.star.glow;
-        }
-
-        update(dt) {
-          super.update(dt);
-          this.pulsePhase += this.pulseSpeed * dt;
-        }
-
-        draw(ctx) {
-          const r = this.radius * (1 + 0.04 * Math.sin(this.pulsePhase));
-          const cx = this.x, cy = this.y;
-
-          // Multiple glow layers (outer to inner)
-          ctx.save();
-          ctx.globalCompositeOperation = 'lighter';
-          [4.5, 3.0, 2.0, 1.3].forEach((factor, i) => {
-            const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * factor);
-            g.addColorStop(0, rgba(this.glows[3 - i] || this.glows[0], 0.75));
-            g.addColorStop(0.6, rgba(this.glows[3 - i] || this.glows[0], 0.18));
-            g.addColorStop(1, rgba(this.glows[3 - i] || this.glows[0], 0));
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r * factor, 0, TWO_PI);
-            ctx.fill();
-          });
-
-          // Core white-hot sphere
-          const core = ctx.createRadialGradient(
-            cx - r * 0.22, cy - r * 0.18, r * 0.05,
-            cx, cy, r
-          );
-          core.addColorStop(0, 'rgba(255,255,255,0.98)');
-          core.addColorStop(0.25, this.glows[2]);
-          core.addColorStop(0.6, this.glows[1]);
-          core.addColorStop(0.92, this.glows[0]);
-          core.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = core;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, TWO_PI);
-          ctx.fill();
-          ctx.restore();
-        }
-      }
-
-      // ---------------------------------------------------------------------------
-      // 2. Pulsar — rapidly spinning neutron star with beam cones + plasma glow
-      // ---------------------------------------------------------------------------
-      class Pulsar extends CelestialBody {
-        constructor(x, y, mass, radius) {
-          super(x, y, mass, radius);
-          this.spin = rand(3.0, 6.0);
-          this.pulsePhase = rand(0, TWO_PI);
-          this.pulseSpeed = rand(6.0, 12.0);
-          this.beamLength = radius * 12;
-          this.beamWidth = radius * 1.2;
-          this.glows = PALETTE.pulsar.glow;
-        }
-
-        update(dt) {
-          super.update(dt);
-          this.pulsePhase += this.pulseSpeed * dt;
-        }
-
-        draw(ctx) {
-          const r = this.radius * (1 + 0.05 * Math.sin(this.pulsePhase));
-          const cx = this.x, cy = this.y;
-
-          ctx.save();
-          ctx.translate(cx, cy);
-          ctx.rotate(this.angle);
-
-          // Magnetic beam cones (funky geo look)
-          ctx.globalCompositeOperation = 'lighter';
-          const beamAlpha = 0.25 + 0.15 * Math.sin(this.pulsePhase * 2);
-          for (const sign of [-1, 1]) {
-            const g = ctx.createLinearGradient(0, 0, 0, sign * this.beamLength);
-            g.addColorStop(0, rgba(this.glows[0], beamAlpha));
-            g.addColorStop(0.5, rgba(this.glows[2], beamAlpha * 0.45));
-            g.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(-this.beamWidth * 0.35, sign * this.beamLength);
-            ctx.lineTo(this.beamWidth * 0.35, sign * this.beamLength);
-            ctx.closePath();
-            ctx.fill();
-          }
-
-          // Plasma glow layers
-          [3.5, 2.2, 1.5].forEach((factor, i) => {
-            const g = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * factor);
-            g.addColorStop(0, rgba(this.glows[3 - i] || this.glows[0], 0.65));
-            g.addColorStop(0.7, rgba(this.glows[3 - i] || this.glows[0], 0.12));
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.arc(0, 0, r * factor, 0, TWO_PI);
-            ctx.fill();
-          });
-
-          // Core with hotspot offset
-          const core = ctx.createRadialGradient(-r * 0.25, -r * 0.18, r * 0.04, 0, 0, r);
-          core.addColorStop(0, 'rgba(255,255,255,0.97)');
-          core.addColorStop(0.35, this.glows[2]);
-          core.addColorStop(0.75, this.glows[1]);
-          core.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = core;
-          ctx.beginPath();
-          ctx.arc(0, 0, r, 0, TWO_PI);
-          ctx.fill();
-
-          ctx.restore();
-        }
-      }
-
-      // ---------------------------------------------------------------------------
-      // 3. Black Hole — gravitational lensing + tilted accretion disk
-      // ---------------------------------------------------------------------------
-      class BlackHole extends CelestialBody {
-        constructor(x, y, mass, radius) {
-          super(x, y, mass, radius);
-          this.spin = 0.3;
-          this.diskAngle = rand(0, TWO_PI);
-          this.diskTilt = rand(0.25, 0.55); // 0 = face-on, 1 = edge-on
-          this.diskSpeed = rand(0.6, 1.4);
-          this.colors = PALETTE.blackhole.disk;
-        }
-
-        update(dt) {
-          super.update(dt);
-          this.diskAngle += this.diskSpeed * dt;
-        }
-
-        draw(ctx) {
-          const cx = this.x, cy = this.y, r = this.radius;
-          const diskRx = r * 3.2;
-          const diskRy = r * 1.0 * (1 - this.diskTilt * 0.85);
-
-          ctx.save();
-          ctx.translate(cx, cy);
-
-          // Gravitational lensing halo (radial chromatic rings)
-          const halo = ctx.createRadialGradient(0, 0, r * 0.9, 0, 0, r * 4.5);
-          halo.addColorStop(0, 'rgba(0,0,0,0.9)');
-          halo.addColorStop(0.28, rgba('#220044', 0.35));
-          halo.addColorStop(0.45, rgba('#6600cc', 0.18));
-          halo.addColorStop(0.65, rgba('#00ccff', 0.08));
-          halo.addColorStop(0.85, rgba('#ff00aa', 0.04));
-          halo.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = halo;
-          ctx.beginPath();
-          ctx.arc(0, 0, r * 4.5, 0, TWO_PI);
-          ctx.fill();
-
-          // Tilted accretion disk drawn with elliptical gradients
-          ctx.rotate(this.diskAngle);
-          for (let i = 0; i < 3; i++) {
-            const ringRx = diskRx * (1 - i * 0.18);
-            const ringRy = diskRy * (1 - i * 0.12);
-            const g = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, ringRx);
-            g.addColorStop(0, 'rgba(0,0,0,0)');
-            g.addColorStop(0.55, rgba(this.colors[i], 0.22 + i * 0.15));
-            g.addColorStop(0.82, rgba(this.colors[i + 1] || this.colors[0], 0.45));
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, ringRx, ringRy, 0, 0, TWO_PI);
-            ctx.fill();
-          }
-
-          // Bright hot inner ring
-          const inner = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 1.4);
-          inner.addColorStop(0, 'rgba(0,0,0,0)');
-          inner.addColorStop(0.45, rgba('#fff', 0.6));
-          inner.addColorStop(0.75, rgba('#ffae00', 0.35));
-          inner.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = inner;
-          ctx.beginPath();
-          ctx.ellipse(0, 0, r * 1.4, r * 0.55, 0, 0, TWO_PI);
-          ctx.fill();
-          ctx.rotate(-this.diskAngle);
-
-          // Event horizon sphere (pitch black with subtle rim light = photon sphere)
-          const lens = ctx.createRadialGradient(-r * 0.15, -r * 0.12, r * 0.1, 0, 0, r);
-          lens.addColorStop(0, 'rgba(0,0,0,0.96)');
-          lens.addColorStop(0.82, 'rgba(0,0,0,0.98)');
-          lens.addColorStop(0.95, rgba('#8a2dff', 0.35)); // photon sphere rim
-          lens.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = lens;
-          ctx.beginPath();
-          ctx.arc(0, 0, r, 0, TWO_PI);
-          ctx.fill();
-
-          ctx.restore();
-        }
-      }
-
-      // ---------------------------------------------------------------------------
-      // 4. Planet — terminator shadow + atmospheric limb glow
-      // ---------------------------------------------------------------------------
-      class Planet extends CelestialBody {
-        constructor(x, y, mass, radius, color) {
-          super(x, y, mass, radius);
-          this.color = color || PALETTE.planet[Math.floor(rand(0, PALETTE.planet.length))];
-          this.spin = rand(-0.4, 0.4);
-          this.hasRings = Math.random() > 0.75;
-          this.ringTilt = rand(0.15, 0.45);
-          this.ringAngle = rand(0, TWO_PI);
-          this.surfaceSpots = [];
-          for (let i = 0; i < 6; i++) {
-            this.surfaceSpots.push({
-              lat: rand(-0.9, 0.9), lon: rand(0, TWO_PI), size: rand(0.1, 0.28)
-            });
-          }
-        }
-
-        update(dt) {
-          super.update(dt);
-          this.ringAngle += this.spin * 0.5 * dt;
-        }
-
-        draw(ctx) {
-          const cx = this.x, cy = this.y, r = this.radius;
-          const lightX = LIGHT_DIR.x * r * 0.9;
-          const lightY = LIGHT_DIR.y * r * 0.9;
-          const shadowCenterX = cx + LIGHT_DIR.x * r * 0.55;
-          const shadowCenterY = cy + LIGHT_DIR.y * r * 0.55;
-
-          ctx.save();
-          ctx.translate(cx, cy);
-
-          // Optional funky rings
-          if (this.hasRings) {
-            ctx.rotate(this.ringAngle);
-            const ringGrad = ctx.createRadialGradient(0, 0, r * 1.15, 0, 0, r * 2.1);
-            ringGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            ringGrad.addColorStop(0.25, rgba(this.color, 0.45));
-            ringGrad.addColorStop(0.5, rgba('#fff', 0.35));
-            ringGrad.addColorStop(0.75, rgba(this.color, 0.45));
-            ringGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = ringGrad;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, r * 2.1, r * 2.1 * (0.18 + this.ringTilt * 0.45), 0, 0, TWO_PI);
-            ctx.fill();
-            ctx.rotate(-this.ringAngle);
-          }
-
-          // Atmospheric limb glow on the lit edge (opposite to terminator)
-          const limb = ctx.createRadialGradient(
-            -LIGHT_DIR.x * r * 0.35, -LIGHT_DIR.y * r * 0.35, r * 0.82,
-            0, 0, r * 1.18
-          );
-          limb.addColorStop(0, 'rgba(255,255,255,0)');
-          limb.addColorStop(0.6, 'rgba(255,255,255,0)');
-          limb.addColorStop(0.92, rgba(this.color, 0.28));
-          limb.addColorStop(1, 'rgba(255,255,255,0.45)');
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.fillStyle = limb;
-          ctx.beginPath();
-          ctx.arc(0, 0, r * 1.18, 0, TWO_PI);
-          ctx.fill();
-          ctx.globalCompositeOperation = 'source-over';
-
-          // Main spherical body with directional shading
-          const sphere = ctx.createRadialGradient(
-            lightX, lightY, 0, 0, 0, r
-          );
-          sphere.addColorStop(0, rgba('#fff', 0.65)); // subsolar hotspot
-          sphere.addColorStop(0.2, rgba(this.color, 0.95));
-          sphere.addColorStop(0.55, this.color);
-          sphere.addColorStop(0.85, 'rgba(0,0,0,0.92)');
-          sphere.addColorStop(1, 'rgba(0,0,0,0.97)');
-
-          ctx.fillStyle = sphere;
-          ctx.beginPath();
-          ctx.arc(0, 0, r, 0, TWO_PI);
-          ctx.fill();
-
-          // Terminator shadow (soft directional overlay)
-          const term = ctx.createRadialGradient(
-            shadowCenterX - cx, shadowCenterY - cy, 0,
-            shadowCenterX - cx, shadowCenterY - cy, r * 1.35
-          );
-          term.addColorStop(0, 'rgba(0,0,0,0.88)');
-          term.addColorStop(0.55, 'rgba(0,0,0,0.55)');
-          term.addColorStop(0.85, 'rgba(0,0,0,0.12)');
-          term.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.fillStyle = term;
-          ctx.beginPath();
-          ctx.arc(0, 0, r, 0, TWO_PI);
-          ctx.fill();
-          ctx.globalCompositeOperation = 'source-over';
-
-          // Funky geo surface spots (subtle craters/clouds)
-          ctx.save();
-          ctx.clip();
-          ctx.rotate(this.angle);
-          this.surfaceSpots.forEach(spot => {
-            const sx = Math.sin(spot.lon) * r * spot.lat * 0.8;
-            const sy = Math.cos(spot.lon) * r * spot.lat * 0.8;
-            const spotG = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * spot.size);
-            spotG.addColorStop(0, 'rgba(0,0,0,0.18)');
-            spotG.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = spotG;
-            ctx.beginPath();
-            ctx.arc(sx, sy, r * spot.size, 0, TWO_PI);
-            ctx.fill();
-          });
-          ctx.restore();
-
-          ctx.restore();
-        }
-      }
-
-      // ---------------------------------------------------------------------------
-      // 5. Physics engine / scene
-      // ---------------------------------------------------------------------------
-      const G = 0.8;
-      const bodies = [];
-      let paused = false;
-
-      function addStar() {
-        const s = new Star(cx, cy, 12000, 60);
-        bodies.push(s);
-        return s;
-      }
-      function addBlackHole() {
-        const b = new BlackHole(cx, cy, 18000, 45);
-        bodies.push(b);
-        return b;
-      }
-      function addPulsar() {
-        const p = new Pulsar(cx, cy, 9000, 28);
-        bodies.push(p);
-        return p;
-      }
-      function addPlanet(around) {
-        const color = PALETTE.planet[Math.floor(rand(0, PALETTE.planet.length))];
-        const radius = rand(12, 22);
-        const dist = rand(180, 320);
-        const angle = rand(0, TWO_PI);
-        const speed = Math.sqrt((around ? around.mass : 12000) / dist) * 0.018;
-        const p = new Planet(
-          cx + Math.cos(angle) * dist,
-          cy + Math.sin(angle) * dist,
-          rand(80, 200), radius, color
-        );
-        p.vx = -Math.sin(angle) * speed;
-        p.vy = Math.cos(angle) * speed;
-        bodies.push(p);
-        return p;
-      }
-
-      function initScene() {
-        bodies.length = 0;
-        const star = addStar();
-        for (let i = 0; i < 5; i++) addPlanet(star);
-      }
-      initScene();
-
-      // ---------------------------------------------------------------------------
-      // Starfield background (parallax geo stars)
-      // ---------------------------------------------------------------------------
-      const stars = [];
-      for (let i = 0; i < 220; i++) {
-        stars.push({
-          x: rand(0, width), y: rand(0, height), z: rand(0.5, 3),
-          size: rand(0.5, 2.5), phase: rand(0, TWO_PI)
-        });
-      }
-
-      function drawBackground(time) {
-        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(width, height) * 0.75);
-        bgGrad.addColorStop(0, '#1a0b3d');
-        bgGrad.addColorStop(0.6, '#0b0b1f');
-        bgGrad.addColorStop(1, '#02020a');
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.fillStyle = '#fff';
-        stars.forEach(s => {
-          const twinkle = 0.5 + 0.5 * Math.sin(time * 0.002 + s.phase);
-          ctx.globalAlpha = twinkle * clamp(1 / s.z, 0.25, 1);
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.size / s.z, 0, TWO_PI);
-          ctx.fill();
-        });
-        ctx.globalAlpha = 1;
-
-        // Funky distant nebula clouds (subtle)
-        ctx.globalCompositeOperation = 'lighter';
-        const neb = ctx.createRadialGradient(cx * 0.7, cy * 1.3, 0, cx * 0.7, cy * 1.3, width * 0.55);
-        neb.addColorStop(0, 'rgba(255,45,149,0.08)');
-        neb.addColorStop(0.5, 'rgba(45,224,255,0.04)');
-        neb.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = neb;
-        ctx.fillRect(0, 0, width, height);
-        ctx.globalCompositeOperation = 'source-over';
-      }
-
-      // ---------------------------------------------------------------------------
-      // Gravity integration
-      // ---------------------------------------------------------------------------
-      function applyGravity() {
-        for (let i = 0; i < bodies.length; i++) {
-          const a = bodies[i];
-          for (let j = 0; j < bodies.length; j++) {
-            if (i === j) continue;
-            const b = bodies[j];
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const d2 = dx * dx + dy * dy;
-            const d = Math.sqrt(d2);
-            if (d < a.radius + b.radius) continue; // simple collision skip
-            const f = (G * b.mass) / (d2 + 1);
-            a.vx += (dx / d) * f * 0.008;
-            a.vy += (dy / d) * f * 0.008;
-          }
-        }
-      }
-
-      // ---------------------------------------------------------------------------
-      // Main loop
-      // ---------------------------------------------------------------------------
-      let last = performance.now();
-      function loop(now) {
-        const dt = clamp((now - last) / 1000, 0, 0.05);
-        last = now;
-
-        drawBackground(now);
-
-        if (!paused) {
-          applyGravity();
-          bodies.forEach(b => b.update(dt));
-        }
-
-        // Sort by radius descending so glows compose nicely
-        bodies.slice().sort((a, b) => b.radius - a.radius).forEach(b => b.draw(ctx));
-
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);
-
-      // ---------------------------------------------------------------------------
-      // Controls
-      // ---------------------------------------------------------------------------
-      document.getElementById('btnPause').addEventListener('click', () => { paused = !paused; });
-      document.getElementById('btnReset').addEventListener('click', () => { initScene(); });
-      document.getElementById('btnAddPlanet').addEventListener('click', () => {
-        const suns = bodies.filter(b => b instanceof Star || b instanceof Pulsar);
-        addPlanet(suns[0] || bodies[0]);
-      });
-      document.getElementById('btnAddPulsar').addEventListener('click', () => {
-        const p = addPulsar();
-        p.x = rand(cx - 200, cx + 200);
-        p.y = rand(cy - 200, cy + 200);
-      });
-
-      // Mouse interaction: nudge bodies
-      canvas.addEventListener('mousedown', e => {
-        const mx = e.clientX, my = e.clientY;
-        bodies.forEach(b => {
-          const dx = mx - b.x, dy = my - b.y;
-          if (dx * dx + dy * dy < b.radius * b.radius * 4) {
-            b.vx += (Math.random() - 0.5) * 2;
-            b.vy += (Math.random() - 0.5) * 2;
-          }
-        });
-      });
-    })();
-  </script>
 </body>
 </html>

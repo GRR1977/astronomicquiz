@@ -1,4 +1,199 @@
 <!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+<meta charset='UTF-8'>
+<title>CosmoQuest - Funky Geo Quest</title>
+<style>
+  :root{ --neon-pink:#ff2a6d; --neon-cyan:#05d9e8; --neon-yellow:#f7e733; --neon-purple:#b967ff; --void:#0b0d1a; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:radial-gradient(circle at 50% 10%, #1a1e45 0%, #0b0d1a 70%, #05060f 100%);color:#fff;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  header{padding:1rem;text-align:center}
+  h1{margin:0;font-size:3rem;font-weight:900;letter-spacing:4px;text-shadow:0 0 8px var(--neon-cyan), 0 0 16px var(--neon-pink);text-transform:uppercase}
+  p{margin:0.5rem 0 0;font-size:1.1rem;opacity:0.85;color:var(--neon-yellow)}
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:14px;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.15);border-radius:24px;margin:12px 0;backdrop-filter:blur(6px)}
+  button{border:none;border-radius:16px;padding:12px 22px;font-size:1rem;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));box-shadow:0 4px 0 rgba(0,0,0,0.3),0 0 12px rgba(5,217,232,0.3);transition:transform .1s, box-shadow .1s}
+  button:hover{transform:translateY(-2px);box-shadow:0 6px 0 rgba(0,0,0,0.3),0 0 20px rgba(5,217,232,0.5)}
+  button:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.3)}
+  button.active{background:linear-gradient(135deg, var(--neon-pink), var(--neon-yellow));color:#120024}
+  .stage{width:96vw;max-width:1300px;display:flex;justify-content:center;margin-bottom:1rem}
+  canvas{width:100%;height:600px;border-radius:20px;box-shadow:0 0 30px rgba(5,217,232,0.15),0 0 60px rgba(0,0,0,0.5) inset;background:var(--void);cursor:crosshair}
+  .info{padding:0.5rem 1rem;font-size:0.95rem;opacity:0.8;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>CosmoQuest</h1>
+  <p>Gravidade, Pulsares e Discos de Acreção</p>
+</header>
+<div class='toolbar'>
+  <button data-tool='star' class='active'>Estrela</button>
+  <button data-tool='planet'>Planeta</button>
+  <button data-tool='blackhole'>Buraco Negro</button>
+  <button data-tool='pulsar'>Pulsar</button>
+  <button id='clearBtn'>Limpar Universo</button>
+</div>
+<div class='stage'><canvas id='cosmos'></canvas></div>
+<div class='info'>Clique no canvas para criar. Buracos negros atraem estrelas e planetas; se chegarem muito perto, são consumidos.</div>
+<script>
+const canvas=document.getElementById('cosmos');
+const ctx=canvas.getContext('2d');
+const toolbar=document.querySelector('.toolbar');
+const clearBtn=document.getElementById('clearBtn');
+
+let width,height;
+function resize(){ const rect=canvas.parentElement.getBoundingClientRect(); width=canvas.width=rect.width; height=canvas.height=600; }
+resize(); window.addEventListener('resize',resize);
+
+const G=0.5;
+const DT=0.6;
+let objects=[];
+let tool='star';
+
+toolbar.addEventListener('click',e=>{
+  if(e.target.dataset.tool){ tool=e.target.dataset.tool; document.querySelectorAll('button[data-tool]').forEach(b=>b.classList.toggle('active',b===e.target)); }
+});
+clearBtn.addEventListener('click',()=>{ objects=[]; });
+
+function toRad(d){ return d*Math.PI/180; }
+
+class Body{
+  constructor(x,y,mass,radius,color){ this.x=x; this.y=y; this.vx=0; this.vy=0; this.mass=mass; this.radius=radius; this.color=color; this.dead=false; }
+  dist(o){ const dx=o.x-this.x, dy=o.y-this.y; return Math.hypot(dx,dy); }
+  update(){ this.x+=this.vx*DT; this.y+=this.vy*DT; }
+  bounds(){ if(this.x<0||this.x>width){this.vx*=-0.8;this.x=Math.max(0,Math.min(width,this.x));} if(this.y<0||this.y>height){this.vy*=-0.8;this.y=Math.max(0,Math.min(height,this.y));} }
+}
+
+class Star extends Body{
+  constructor(x,y){ super(x,y,80,14,'#ffe600'); this.pulse=Math.random()*Math.PI*2; }
+  draw(ctx){
+    this.pulse+=0.08;
+    const r=this.radius+Math.sin(this.pulse)*1.5;
+    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,r*3);
+    g.addColorStop(0,'#fff'); g.addColorStop(0.2,this.color); g.addColorStop(0.5,'rgba(255,100,50,0.35)'); g.addColorStop(1,'rgba(255,100,50,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,r*3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(this.x,this.y,r*0.5,0,Math.PI*2); ctx.fill();
+  }
+}
+
+class Pulsar extends Star{
+  constructor(x,y){ super(x,y); this.color='#05d9e8'; this.angle=Math.random()*Math.PI*2; this.spin=0.04; this.beamLen=400; }
+  update(){ super.update(); this.angle+=this.spin; }
+  draw(ctx){
+    super.draw(ctx);
+    ctx.save();
+    ctx.translate(this.x,this.y); ctx.rotate(this.angle);
+    const grad=ctx.createRadialGradient(0,0,0,0,0,this.beamLen);
+    grad.addColorStop(0,'rgba(5,217,232,0.9)');
+    grad.addColorStop(0.15,'rgba(5,217,232,0.25)');
+    grad.addColorStop(1,'rgba(5,217,232,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,this.beamLen, -0.18, 0.18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,this.beamLen, Math.PI-0.18, Math.PI+0.18); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class BlackHole extends Body{
+  constructor(x,y){ super(x,y,3000,18,'#000'); this.eventHorizon=22; this.disc=new AccretionDisc(this); }
+  update(){ this.disc.update(); }
+  draw(ctx){
+    this.disc.draw(ctx);
+    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.eventHorizon*3);
+    g.addColorStop(0,'#000'); g.addColorStop(0.45,'#000'); g.addColorStop(0.55,'rgba(255,80,180,0.6)'); g.addColorStop(1,'rgba(255,80,180,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon*3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(180,80,255,0.8)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(this.x,this.y,this.eventHorizon+2,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+class AccretionDisc{
+  constructor(host){ this.host=host; this.particles=[]; for(let i=0;i<160;i++){ this.particles.push({ r: 28+Math.random()*48, theta: Math.random()*Math.PI*2, speed: 0.002+Math.random()*0.005, size:1+Math.random()*2, color: Math.random()<0.5?'#ff2a6d':'#ffae00' }); } }
+  update(){ for(let p of this.particles){ p.theta+=p.speed; } }
+  draw(ctx){
+    ctx.save();
+    ctx.globalCompositeOperation='screen';
+    for(let p of this.particles){
+      const x=this.host.x+Math.cos(p.theta)*p.r;
+      const y=this.host.y+Math.sin(p.theta)*p.r*0.55;
+      const alpha=1-(p.r-28)/48;
+      ctx.fillStyle=p.color; ctx.globalAlpha=alpha*0.8;
+      ctx.beginPath(); ctx.arc(x,y,p.size,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+class Planet extends Body{
+  constructor(x,y){ super(x,y,12,5,'#00ff9d'); this.host=null; this.setOrbit(); }
+  setOrbit(){
+    let best=null, bestD=Infinity;
+    for(let o of objects){ if(o instanceof BlackHole || o instanceof Star){ const d=this.dist(o); if(d<bestD && d<250){ bestD=d; best=o; } } }
+    if(best){
+      const dx=this.x-best.x, dy=this.y-best.y, d=Math.hypot(dx,dy)||1;
+      const v=Math.sqrt(G*best.mass/d);
+      this.vx=-(dy/d)*v; this.vy=(dx/d)*v;
+    } else {
+      this.vx=(Math.random()-0.5)*2; this.vy=(Math.random()-0.5)*2;
+    }
+  }
+  draw(ctx){
+    const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.radius*3);
+    g.addColorStop(0,this.color); g.addColorStop(1,'rgba(0,255,157,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius*3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ccfff0'; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius+2,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+function applyGravity(){
+  for(let bh of objects){
+    if(!(bh instanceof BlackHole)) continue;
+    for(let obj of objects){
+      if(obj===bh || obj.dead) continue;
+      if(!(obj instanceof Star) && !(obj instanceof Planet) && !(obj instanceof Pulsar)) continue;
+      const dx=bh.x-obj.x, dy=bh.y-obj.y, d=Math.hypot(dx,dy);
+      if(d<bh.eventHorizon+obj.radius){ obj.dead=true; continue; }
+      const f=G*bh.mass/(d*d); const fx=(dx/d)*f, fy=(dy/d)*f;
+      obj.vx+=fx; obj.vy+=fy;
+    }
+  }
+}
+
+function drawBackground(){
+  const g=ctx.createLinearGradient(0,0,0,height);
+  g.addColorStop(0,'#05061a'); g.addColorStop(1,'#0f1133');
+  ctx.fillStyle=g; ctx.fillRect(0,0,width,height);
+  ctx.save(); ctx.globalAlpha=0.4;
+  for(let i=0;i<60;i++){
+    const sx=(Math.sin(i*12.3)*0.5+0.5)*width, sy=(Math.cos(i*7.7)*0.5+0.5)*height, sz=1+(i%3);
+    ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(sx,sy,sz,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function spawnObject(x,y){
+  if(tool==='star') objects.push(new Star(x,y));
+  else if(tool==='planet') objects.push(new Planet(x,y));
+  else if(tool==='blackhole') objects.push(new BlackHole(x,y));
+  else if(tool==='pulsar') objects.push(new Pulsar(x,y));
+}
+
+canvas.addEventListener('pointerdown',e=>{ const rect=canvas.getBoundingClientRect(); spawnObject(e.clientX-rect.left,e.clientY-rect.top); });
+
+function loop(){
+  drawBackground();
+  applyGravity();
+  for(let o of objects){ o.update(); if(!(o instanceof BlackHole)) o.bounds(); }
+  objects=objects.filter(o=>!o.dead);
+  for(let o of objects){ o.draw(ctx); }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
+
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />

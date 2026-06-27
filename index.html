@@ -894,3 +894,633 @@ loop();
   </script>
 </body>
 </html>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CosmoQuest — Simulador 3D Volumétrico</title>
+  <style>
+    :root {
+      --bg: #0b0b1f;
+      --panel: rgba(18, 18, 44, 0.85);
+      --accent: #ff2d95;
+      --accent2: #2de0ff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .hud {
+      position: fixed; top: 14px; left: 14px;
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      border: 2px solid var(--accent);
+      border-radius: 18px;
+      padding: 16px 20px;
+      max-width: 320px;
+      box-shadow: 0 0 22px rgba(255, 45, 149, 0.35);
+    }
+    .hud h1 {
+      font-size: 1.35rem;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent2);
+      text-shadow: 0 0 10px var(--accent2);
+    }
+    .hud p { font-size: 0.85rem; opacity: 0.85; line-height: 1.4; }
+    .badge {
+      display: inline-block; margin-top: 8px; margin-right: 6px;
+      padding: 4px 10px; border-radius: 20px; font-size: 0.7rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+    }
+    .controls {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    }
+    button {
+      background: linear-gradient(135deg, #2de0ff, #ff2d95);
+      border: none; color: #fff; font-weight: 700; text-transform: uppercase;
+      padding: 10px 18px; border-radius: 30px; cursor: pointer;
+      box-shadow: 0 0 18px rgba(45, 224, 255, 0.4);
+      transition: transform .1s, filter .1s;
+      font-size: 0.75rem;
+    }
+    button:hover { transform: translateY(-2px); filter: brightness(1.15); }
+    button:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <canvas id="cosmoCanvas"></canvas>
+
+  <div class="hud">
+    <h1>CosmoQuest 3D</h1>
+    <p>Simulação orbital com corpos celestes volumétricos. Arraste para orbitar, role para zoom.</p>
+    <div>
+      <span class="badge">WebGL-free</span>
+      <span class="badge">Canvas 2D</span>
+      <span class="badge">Funky Geo</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnPause">Pausar / Retomar</button>
+    <button id="btnReset">Reiniciar</button>
+    <button id="btnAddPlanet">+ Planeta</button>
+    <button id="btnAddPulsar">+ Pulsar</button>
+  </div>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('cosmoCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      let width, height, cx, cy;
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        cx = width / 2; cy = height / 2;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // ---------------------------------------------------------------------------
+      // Funky Geo Quest palette
+      // ---------------------------------------------------------------------------
+      const PALETTE = {
+        star: { body: '#ffeeaa', glow: ['#ff4d2a', '#ff9900', '#ffcc00', '#fff'] },
+        pulsar: { body: '#d0f0ff', glow: ['#00ffff', '#0088ff', '#4400ff', '#fff'] },
+        planet: ['#ff2d95', '#2de0ff', '#a02dff', '#2dff7e', '#ffd12d', '#ff6b2d'],
+        blackhole: { disk: ['#ff5e00', '#ffae00', '#fff', '#ff00aa'], shadow: '#050005' }
+      };
+
+      // ---------------------------------------------------------------------------
+      // Utilities
+      // ---------------------------------------------------------------------------
+      const TWO_PI = Math.PI * 2;
+      function rand(min, max) { return Math.random() * (max - min) + min; }
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function hexToRgb(hex) {
+        const m = hex.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16));
+        return { r: m[0], g: m[1], b: m[2] };
+      }
+      function rgba(hex, a) {
+        const c = hexToRgb(hex);
+        return `rgba(${c.r},${c.g},${c.b},${a})`;
+      }
+
+      // ---------------------------------------------------------------------------
+      // 3D light vector (fixed directional "sun" from top-left)
+      // ---------------------------------------------------------------------------
+      const LIGHT_DIR = { x: -0.65, y: -0.45, z: 0.62 };
+      const L_LEN = Math.sqrt(LIGHT_DIR.x**2 + LIGHT_DIR.y**2 + LIGHT_DIR.z**2);
+      LIGHT_DIR.x /= L_LEN; LIGHT_DIR.y /= L_LEN; LIGHT_DIR.z /= L_LEN;
+
+      // ---------------------------------------------------------------------------
+      // Base class
+      // ---------------------------------------------------------------------------
+      class CelestialBody {
+        constructor(x, y, mass, radius) {
+          this.x = x; this.y = y;
+          this.vx = 0; this.vy = 0;
+          this.mass = mass;
+          this.radius = radius;
+          this.dead = false;
+          this.angle = 0;
+          this.spin = 0;
+        }
+        update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.angle += this.spin * dt; }
+        draw(ctx) { /* subclasses implement */ }
+      }
+
+      // ---------------------------------------------------------------------------
+      // 1. Star — incandescent plasma sphere with multiple glow layers
+      // ---------------------------------------------------------------------------
+      class Star extends CelestialBody {
+        constructor(x, y, mass, radius) {
+          super(x, y, mass, radius);
+          this.spin = rand(0.05, 0.2);
+          this.pulsePhase = rand(0, TWO_PI);
+          this.pulseSpeed = rand(0.8, 2.2);
+          this.color = PALETTE.star.body;
+          this.glows = PALETTE.star.glow;
+        }
+
+        update(dt) {
+          super.update(dt);
+          this.pulsePhase += this.pulseSpeed * dt;
+        }
+
+        draw(ctx) {
+          const r = this.radius * (1 + 0.04 * Math.sin(this.pulsePhase));
+          const cx = this.x, cy = this.y;
+
+          // Multiple glow layers (outer to inner)
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          [4.5, 3.0, 2.0, 1.3].forEach((factor, i) => {
+            const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * factor);
+            g.addColorStop(0, rgba(this.glows[3 - i] || this.glows[0], 0.75));
+            g.addColorStop(0.6, rgba(this.glows[3 - i] || this.glows[0], 0.18));
+            g.addColorStop(1, rgba(this.glows[3 - i] || this.glows[0], 0));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * factor, 0, TWO_PI);
+            ctx.fill();
+          });
+
+          // Core white-hot sphere
+          const core = ctx.createRadialGradient(
+            cx - r * 0.22, cy - r * 0.18, r * 0.05,
+            cx, cy, r
+          );
+          core.addColorStop(0, 'rgba(255,255,255,0.98)');
+          core.addColorStop(0.25, this.glows[2]);
+          core.addColorStop(0.6, this.glows[1]);
+          core.addColorStop(0.92, this.glows[0]);
+          core.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = core;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, TWO_PI);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+      // 2. Pulsar — rapidly spinning neutron star with beam cones + plasma glow
+      // ---------------------------------------------------------------------------
+      class Pulsar extends CelestialBody {
+        constructor(x, y, mass, radius) {
+          super(x, y, mass, radius);
+          this.spin = rand(3.0, 6.0);
+          this.pulsePhase = rand(0, TWO_PI);
+          this.pulseSpeed = rand(6.0, 12.0);
+          this.beamLength = radius * 12;
+          this.beamWidth = radius * 1.2;
+          this.glows = PALETTE.pulsar.glow;
+        }
+
+        update(dt) {
+          super.update(dt);
+          this.pulsePhase += this.pulseSpeed * dt;
+        }
+
+        draw(ctx) {
+          const r = this.radius * (1 + 0.05 * Math.sin(this.pulsePhase));
+          const cx = this.x, cy = this.y;
+
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(this.angle);
+
+          // Magnetic beam cones (funky geo look)
+          ctx.globalCompositeOperation = 'lighter';
+          const beamAlpha = 0.25 + 0.15 * Math.sin(this.pulsePhase * 2);
+          for (const sign of [-1, 1]) {
+            const g = ctx.createLinearGradient(0, 0, 0, sign * this.beamLength);
+            g.addColorStop(0, rgba(this.glows[0], beamAlpha));
+            g.addColorStop(0.5, rgba(this.glows[2], beamAlpha * 0.45));
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-this.beamWidth * 0.35, sign * this.beamLength);
+            ctx.lineTo(this.beamWidth * 0.35, sign * this.beamLength);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Plasma glow layers
+          [3.5, 2.2, 1.5].forEach((factor, i) => {
+            const g = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * factor);
+            g.addColorStop(0, rgba(this.glows[3 - i] || this.glows[0], 0.65));
+            g.addColorStop(0.7, rgba(this.glows[3 - i] || this.glows[0], 0.12));
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * factor, 0, TWO_PI);
+            ctx.fill();
+          });
+
+          // Core with hotspot offset
+          const core = ctx.createRadialGradient(-r * 0.25, -r * 0.18, r * 0.04, 0, 0, r);
+          core.addColorStop(0, 'rgba(255,255,255,0.97)');
+          core.addColorStop(0.35, this.glows[2]);
+          core.addColorStop(0.75, this.glows[1]);
+          core.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = core;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, TWO_PI);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+      // 3. Black Hole — gravitational lensing + tilted accretion disk
+      // ---------------------------------------------------------------------------
+      class BlackHole extends CelestialBody {
+        constructor(x, y, mass, radius) {
+          super(x, y, mass, radius);
+          this.spin = 0.3;
+          this.diskAngle = rand(0, TWO_PI);
+          this.diskTilt = rand(0.25, 0.55); // 0 = face-on, 1 = edge-on
+          this.diskSpeed = rand(0.6, 1.4);
+          this.colors = PALETTE.blackhole.disk;
+        }
+
+        update(dt) {
+          super.update(dt);
+          this.diskAngle += this.diskSpeed * dt;
+        }
+
+        draw(ctx) {
+          const cx = this.x, cy = this.y, r = this.radius;
+          const diskRx = r * 3.2;
+          const diskRy = r * 1.0 * (1 - this.diskTilt * 0.85);
+
+          ctx.save();
+          ctx.translate(cx, cy);
+
+          // Gravitational lensing halo (radial chromatic rings)
+          const halo = ctx.createRadialGradient(0, 0, r * 0.9, 0, 0, r * 4.5);
+          halo.addColorStop(0, 'rgba(0,0,0,0.9)');
+          halo.addColorStop(0.28, rgba('#220044', 0.35));
+          halo.addColorStop(0.45, rgba('#6600cc', 0.18));
+          halo.addColorStop(0.65, rgba('#00ccff', 0.08));
+          halo.addColorStop(0.85, rgba('#ff00aa', 0.04));
+          halo.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 4.5, 0, TWO_PI);
+          ctx.fill();
+
+          // Tilted accretion disk drawn with elliptical gradients
+          ctx.rotate(this.diskAngle);
+          for (let i = 0; i < 3; i++) {
+            const ringRx = diskRx * (1 - i * 0.18);
+            const ringRy = diskRy * (1 - i * 0.12);
+            const g = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, ringRx);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(0.55, rgba(this.colors[i], 0.22 + i * 0.15));
+            g.addColorStop(0.82, rgba(this.colors[i + 1] || this.colors[0], 0.45));
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, ringRx, ringRy, 0, 0, TWO_PI);
+            ctx.fill();
+          }
+
+          // Bright hot inner ring
+          const inner = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 1.4);
+          inner.addColorStop(0, 'rgba(0,0,0,0)');
+          inner.addColorStop(0.45, rgba('#fff', 0.6));
+          inner.addColorStop(0.75, rgba('#ffae00', 0.35));
+          inner.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = inner;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.4, r * 0.55, 0, 0, TWO_PI);
+          ctx.fill();
+          ctx.rotate(-this.diskAngle);
+
+          // Event horizon sphere (pitch black with subtle rim light = photon sphere)
+          const lens = ctx.createRadialGradient(-r * 0.15, -r * 0.12, r * 0.1, 0, 0, r);
+          lens.addColorStop(0, 'rgba(0,0,0,0.96)');
+          lens.addColorStop(0.82, 'rgba(0,0,0,0.98)');
+          lens.addColorStop(0.95, rgba('#8a2dff', 0.35)); // photon sphere rim
+          lens.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = lens;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, TWO_PI);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+      // 4. Planet — terminator shadow + atmospheric limb glow
+      // ---------------------------------------------------------------------------
+      class Planet extends CelestialBody {
+        constructor(x, y, mass, radius, color) {
+          super(x, y, mass, radius);
+          this.color = color || PALETTE.planet[Math.floor(rand(0, PALETTE.planet.length))];
+          this.spin = rand(-0.4, 0.4);
+          this.hasRings = Math.random() > 0.75;
+          this.ringTilt = rand(0.15, 0.45);
+          this.ringAngle = rand(0, TWO_PI);
+          this.surfaceSpots = [];
+          for (let i = 0; i < 6; i++) {
+            this.surfaceSpots.push({
+              lat: rand(-0.9, 0.9), lon: rand(0, TWO_PI), size: rand(0.1, 0.28)
+            });
+          }
+        }
+
+        update(dt) {
+          super.update(dt);
+          this.ringAngle += this.spin * 0.5 * dt;
+        }
+
+        draw(ctx) {
+          const cx = this.x, cy = this.y, r = this.radius;
+          const lightX = LIGHT_DIR.x * r * 0.9;
+          const lightY = LIGHT_DIR.y * r * 0.9;
+          const shadowCenterX = cx + LIGHT_DIR.x * r * 0.55;
+          const shadowCenterY = cy + LIGHT_DIR.y * r * 0.55;
+
+          ctx.save();
+          ctx.translate(cx, cy);
+
+          // Optional funky rings
+          if (this.hasRings) {
+            ctx.rotate(this.ringAngle);
+            const ringGrad = ctx.createRadialGradient(0, 0, r * 1.15, 0, 0, r * 2.1);
+            ringGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            ringGrad.addColorStop(0.25, rgba(this.color, 0.45));
+            ringGrad.addColorStop(0.5, rgba('#fff', 0.35));
+            ringGrad.addColorStop(0.75, rgba(this.color, 0.45));
+            ringGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = ringGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 2.1, r * 2.1 * (0.18 + this.ringTilt * 0.45), 0, 0, TWO_PI);
+            ctx.fill();
+            ctx.rotate(-this.ringAngle);
+          }
+
+          // Atmospheric limb glow on the lit edge (opposite to terminator)
+          const limb = ctx.createRadialGradient(
+            -LIGHT_DIR.x * r * 0.35, -LIGHT_DIR.y * r * 0.35, r * 0.82,
+            0, 0, r * 1.18
+          );
+          limb.addColorStop(0, 'rgba(255,255,255,0)');
+          limb.addColorStop(0.6, 'rgba(255,255,255,0)');
+          limb.addColorStop(0.92, rgba(this.color, 0.28));
+          limb.addColorStop(1, 'rgba(255,255,255,0.45)');
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = limb;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 1.18, 0, TWO_PI);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+
+          // Main spherical body with directional shading
+          const sphere = ctx.createRadialGradient(
+            lightX, lightY, 0, 0, 0, r
+          );
+          sphere.addColorStop(0, rgba('#fff', 0.65)); // subsolar hotspot
+          sphere.addColorStop(0.2, rgba(this.color, 0.95));
+          sphere.addColorStop(0.55, this.color);
+          sphere.addColorStop(0.85, 'rgba(0,0,0,0.92)');
+          sphere.addColorStop(1, 'rgba(0,0,0,0.97)');
+
+          ctx.fillStyle = sphere;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, TWO_PI);
+          ctx.fill();
+
+          // Terminator shadow (soft directional overlay)
+          const term = ctx.createRadialGradient(
+            shadowCenterX - cx, shadowCenterY - cy, 0,
+            shadowCenterX - cx, shadowCenterY - cy, r * 1.35
+          );
+          term.addColorStop(0, 'rgba(0,0,0,0.88)');
+          term.addColorStop(0.55, 'rgba(0,0,0,0.55)');
+          term.addColorStop(0.85, 'rgba(0,0,0,0.12)');
+          term.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = term;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, TWO_PI);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+
+          // Funky geo surface spots (subtle craters/clouds)
+          ctx.save();
+          ctx.clip();
+          ctx.rotate(this.angle);
+          this.surfaceSpots.forEach(spot => {
+            const sx = Math.sin(spot.lon) * r * spot.lat * 0.8;
+            const sy = Math.cos(spot.lon) * r * spot.lat * 0.8;
+            const spotG = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * spot.size);
+            spotG.addColorStop(0, 'rgba(0,0,0,0.18)');
+            spotG.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = spotG;
+            ctx.beginPath();
+            ctx.arc(sx, sy, r * spot.size, 0, TWO_PI);
+            ctx.fill();
+          });
+          ctx.restore();
+
+          ctx.restore();
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+      // 5. Physics engine / scene
+      // ---------------------------------------------------------------------------
+      const G = 0.8;
+      const bodies = [];
+      let paused = false;
+
+      function addStar() {
+        const s = new Star(cx, cy, 12000, 60);
+        bodies.push(s);
+        return s;
+      }
+      function addBlackHole() {
+        const b = new BlackHole(cx, cy, 18000, 45);
+        bodies.push(b);
+        return b;
+      }
+      function addPulsar() {
+        const p = new Pulsar(cx, cy, 9000, 28);
+        bodies.push(p);
+        return p;
+      }
+      function addPlanet(around) {
+        const color = PALETTE.planet[Math.floor(rand(0, PALETTE.planet.length))];
+        const radius = rand(12, 22);
+        const dist = rand(180, 320);
+        const angle = rand(0, TWO_PI);
+        const speed = Math.sqrt((around ? around.mass : 12000) / dist) * 0.018;
+        const p = new Planet(
+          cx + Math.cos(angle) * dist,
+          cy + Math.sin(angle) * dist,
+          rand(80, 200), radius, color
+        );
+        p.vx = -Math.sin(angle) * speed;
+        p.vy = Math.cos(angle) * speed;
+        bodies.push(p);
+        return p;
+      }
+
+      function initScene() {
+        bodies.length = 0;
+        const star = addStar();
+        for (let i = 0; i < 5; i++) addPlanet(star);
+      }
+      initScene();
+
+      // ---------------------------------------------------------------------------
+      // Starfield background (parallax geo stars)
+      // ---------------------------------------------------------------------------
+      const stars = [];
+      for (let i = 0; i < 220; i++) {
+        stars.push({
+          x: rand(0, width), y: rand(0, height), z: rand(0.5, 3),
+          size: rand(0.5, 2.5), phase: rand(0, TWO_PI)
+        });
+      }
+
+      function drawBackground(time) {
+        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(width, height) * 0.75);
+        bgGrad.addColorStop(0, '#1a0b3d');
+        bgGrad.addColorStop(0.6, '#0b0b1f');
+        bgGrad.addColorStop(1, '#02020a');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = '#fff';
+        stars.forEach(s => {
+          const twinkle = 0.5 + 0.5 * Math.sin(time * 0.002 + s.phase);
+          ctx.globalAlpha = twinkle * clamp(1 / s.z, 0.25, 1);
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size / s.z, 0, TWO_PI);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Funky distant nebula clouds (subtle)
+        ctx.globalCompositeOperation = 'lighter';
+        const neb = ctx.createRadialGradient(cx * 0.7, cy * 1.3, 0, cx * 0.7, cy * 1.3, width * 0.55);
+        neb.addColorStop(0, 'rgba(255,45,149,0.08)');
+        neb.addColorStop(0.5, 'rgba(45,224,255,0.04)');
+        neb.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = neb;
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // ---------------------------------------------------------------------------
+      // Gravity integration
+      // ---------------------------------------------------------------------------
+      function applyGravity() {
+        for (let i = 0; i < bodies.length; i++) {
+          const a = bodies[i];
+          for (let j = 0; j < bodies.length; j++) {
+            if (i === j) continue;
+            const b = bodies[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const d2 = dx * dx + dy * dy;
+            const d = Math.sqrt(d2);
+            if (d < a.radius + b.radius) continue; // simple collision skip
+            const f = (G * b.mass) / (d2 + 1);
+            a.vx += (dx / d) * f * 0.008;
+            a.vy += (dy / d) * f * 0.008;
+          }
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+      // Main loop
+      // ---------------------------------------------------------------------------
+      let last = performance.now();
+      function loop(now) {
+        const dt = clamp((now - last) / 1000, 0, 0.05);
+        last = now;
+
+        drawBackground(now);
+
+        if (!paused) {
+          applyGravity();
+          bodies.forEach(b => b.update(dt));
+        }
+
+        // Sort by radius descending so glows compose nicely
+        bodies.slice().sort((a, b) => b.radius - a.radius).forEach(b => b.draw(ctx));
+
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+
+      // ---------------------------------------------------------------------------
+      // Controls
+      // ---------------------------------------------------------------------------
+      document.getElementById('btnPause').addEventListener('click', () => { paused = !paused; });
+      document.getElementById('btnReset').addEventListener('click', () => { initScene(); });
+      document.getElementById('btnAddPlanet').addEventListener('click', () => {
+        const suns = bodies.filter(b => b instanceof Star || b instanceof Pulsar);
+        addPlanet(suns[0] || bodies[0]);
+      });
+      document.getElementById('btnAddPulsar').addEventListener('click', () => {
+        const p = addPulsar();
+        p.x = rand(cx - 200, cx + 200);
+        p.y = rand(cy - 200, cy + 200);
+      });
+
+      // Mouse interaction: nudge bodies
+      canvas.addEventListener('mousedown', e => {
+        const mx = e.clientX, my = e.clientY;
+        bodies.forEach(b => {
+          const dx = mx - b.x, dy = my - b.y;
+          if (dx * dx + dy * dy < b.radius * b.radius * 4) {
+            b.vx += (Math.random() - 0.5) * 2;
+            b.vy += (Math.random() - 0.5) * 2;
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

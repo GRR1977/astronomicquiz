@@ -1,1 +1,197 @@
+<!-- ==================== ARQUIVO: 7ano.html ==================== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7º Ano | Astronomia no Colégio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --azul-marinho: #0a2540;
+      --azul-medio: #1b4d7a;
+      --branco: #ffffff;
+      --cinza-claro: #f4f6f8;
+      --cinza-texto: #4a5568;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--cinza-claro);
+      color: var(--azul-marinho);
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--azul-marinho);
+      color: var(--branco);
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+
+    header p {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .card {
+      background: var(--branco);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    .card h2 {
+      color: var(--azul-medio);
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h3 {
+      color: var(--azul-marinho);
+      font-size: 1.15rem;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      color: var(--cinza-texto);
+      margin-bottom: 1rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s, transform 0.1s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: var(--azul-medio);
+      color: var(--branco);
+    }
+
+    .btn-primary:hover {
+      background: var(--azul-marinho);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--azul-marinho);
+      border: 2px solid var(--azul-marinho);
+    }
+
+    .btn-secondary:hover {
+      background: var(--azul-marinho);
+      color: var(--branco);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--cinza-texto);
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 480px) {
+      header h1 {
+        font-size: 1.4rem;
+      }
+      .card {
+        padding: 1.5rem;
+      }
+      .actions {
+        flex-direction: column;
+      }
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>7º Ano - Astronomia</h1>
+    <p>Ciclo de Vida das Estrelas</p>
+  </header>
+
+  <main class="container">
+    <article class="card">
+      <h2>Ciclo de Vida das Estrelas</h2>
+      <p>
+        As estrelas nascem, vivem e morrem. O destino de uma estrela depende principalmente de sua massa. 
+        Vamos conhecer as principais etapas desse ciclo fascinante.
+      </p>
+
+      <h3>Nebulosa</h3>
+      <p>
+        O ciclo começa em uma nebulosa, uma nuvem gigante de gás e poeira. 
+        Regiões densas dessa nuvem colapsam sob a própria gravidade, dando origem a novas estrelas.
+      </p>
+
+      <h3>Estrela (Sequência Principal)</h3>
+      <p>
+        Quando a temperatura no núcleo é suficientemente alta, começa a fusão nuclear do hidrogênio em hélio. 
+        A estrela entra na fase de sequência principal, como o Sol, brilhando de forma estável por bilhões de anos.
+      </p>
+
+      <h3>Estrela Gigante ou Supergigante</h3>
+      <p>
+        Ao esgotar o hidrogênio, estrelas de massa semelhante ao Sol se expandem e se tornam gigantes vermelhas. 
+        Estrelas muito massivas se tornam supergigantes, podendo explodir em supernovas.
+      </p>
+
+      <h3>Supernova ou Anã Branca</h3>
+      <p>
+        Estrelas massivas terminam suas vidas em explosões violentas chamadas supernovas, podendo deixar 
+        estrelas de nêutrons ou buracos negros. Estrelas como o Sol, ao contrário, perdem suas camadas externas 
+        e deixam um núcleo denso e brilhante chamado anã branca.
+      </p>
+
+      <div class="actions">
+        <!-- SUBSTITUA 'slides-7ano.pdf' pelo nome correto do arquivo de slides do 7º ano -->
+        <a href="slides-7ano.pdf" download class="btn btn-primary">Baixar Slides</a>
+        <a href="../index.html" class="btn btn-secondary">Voltar para Home</a>
+      </div>
+    </article>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Astronomia no Colégio. Todos os direitos reservados.</p>
+  </footer>
+
+</body>
+</html>
 

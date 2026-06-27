@@ -1,648 +1,701 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astronomia Avançada - 6º ao 9º Ano</title>
-    
-    <!-- Fonte sans-serif para boa leitura -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CosmoQuest - Astronomia Interativa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --azul-ceu: #7fd3ff;
+      --azul-profundo: #1a3c5a;
+      --amarelo: #ffe14d;
+      --amarelo-claro: #fff6a8;
+      --roxo: #c5a3ff;
+      --roxo-profundo: #7a5fb0;
+      --rosa: #ffb3d9;
+      --verde-lima: #baffc9;
+      --branco: #ffffff;
+      --sombra: 0 8px 0 rgba(0, 0, 0, 0.15);
+      --sombra-hover: 0 5px 0 rgba(0, 0, 0, 0.15);
+      --raio: 24px;
+    }
 
-    <style>
-        /* =============================
-           RESET E CONFIGURAÇÕES GLOBAIS
-           ============================= */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        html {
-            scroll-behavior: smooth; /* Rolagem suave ao clicar nos links */
-        }
+    body {
+      margin: 0;
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #7fd3ff 0%, #c5a3ff 50%, #ffe14d 100%);
+      min-height: 100vh;
+      color: var(--azul-profundo);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f4f6f8; /* Cinza claro */
-            color: #1a2a3a;            /* Azul marinho escuro para texto */
-            line-height: 1.6;
-        }
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
 
-        img {
-            max-width: 100%;
-            display: block;
-        }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      margin: 0;
+      text-shadow: 3px 3px 0 var(--amarelo);
+    }
 
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
+    .tagline {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-top: 8px;
+      background: rgba(255, 255, 255, 0.6);
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 50px;
+    }
 
-        /* =============================
-           HEADER E NAVEGAÇÃO
-           ============================= */
-        header {
-            background-color: #0b1c2f; /* Azul marinho */
-            color: #ffffff;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
+    .mode-switcher {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
 
-        .nav-container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    .btn {
+      border: none;
+      font-family: 'Quicksand', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 14px 28px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: var(--sombra);
+      background: var(--amarelo);
+      color: var(--azul-profundo);
+      outline: none;
+    }
 
-        .logo {
-            font-size: 1.4rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
+    .btn:active {
+      transform: translateY(5px);
+      box-shadow: var(--sombra-hover);
+    }
 
-        /* Menu de navegação desktop */
-        nav ul {
-            list-style: none;
-            display: flex;
-            gap: 1.5rem;
-        }
+    .btn.active {
+      background: var(--roxo);
+      color: var(--branco);
+    }
 
-        nav a {
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
-        }
+    .btn-roxo {
+      background: var(--roxo);
+      color: var(--branco);
+    }
 
-        nav a:hover,
-        nav a:focus {
-            color: #87ceeb; /* Azul claro */
-        }
+    .btn-azul {
+      background: var(--azul-ceu);
+      color: var(--azul-profundo);
+    }
 
-        /* Botão hamburguer para mobile */
-        .menu-toggle {
-            display: none;
-            background: none;
-            border: none;
-            color: #ffffff;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: var(--raio);
+      padding: 24px;
+      box-shadow: 0 12px 0 rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
 
-        /* =============================
-           HERO
-           ============================= */
-        .hero {
-            background: linear-gradient(135deg, #0b1c2f 0%, #142d49 60%, #1e3a5f 100%);
-            color: #ffffff;
-            text-align: center;
-            padding: 6rem 1.5rem;
-            position: relative;
-            overflow: hidden;
-        }
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin: 0 0 18px 0;
+      color: var(--roxo-profundo);
+    }
 
-        /* Estrelas decorativas sutis no fundo */
-        .hero::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.8), transparent),
-                radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,0.7), transparent),
-                radial-gradient(2px 2px at 85% 70%, rgba(255,255,255,0.5), transparent),
-                radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,0.9), transparent);
-            opacity: 0.6;
-            pointer-events: none;
-        }
+    /* PLAY MODE */
+    .play-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
 
-        .hero h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            position: relative;
-            z-index: 1;
-        }
+    @media (max-width: 800px) {
+      .play-layout {
+        grid-template-columns: 1fr;
+      }
+    }
 
-        .hero p {
-            font-size: 1.15rem;
-            max-width: 600px;
-            margin: 0 auto;
-            color: #d0e3f3;
-            position: relative;
-            z-index: 1;
-        }
+    .canvas-wrapper {
+      position: relative;
+      border-radius: var(--raio);
+      overflow: hidden;
+      box-shadow: var(--sombra);
+      background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f23 100%);
+    }
 
-        /* =============================
-           SEÇÕES DE CONTEÚDO
-           ============================= */
-        .section {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 4rem 1.5rem;
-        }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 420px;
+      cursor: crosshair;
+    }
 
-        .section:nth-child(even) {
-            background-color: #ffffff; /* Alternância sutil de cor */
-        }
+    .canvas-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
 
-        .section-title {
-            font-size: 1.8rem;
-            color: #0b1c2f;
-            margin-bottom: 0.5rem;
-            border-left: 5px solid #1e5a96;
-            padding-left: 0.8rem;
-        }
+    .controls {
+      background: var(--amarelo-claro);
+      border-radius: var(--raio);
+      padding: 20px;
+      box-shadow: var(--sombra);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
 
-        .section-subtitle {
-            font-size: 1.1rem;
-            color: #4a6073;
-            margin-bottom: 1.5rem;
-            font-weight: 600;
-        }
+    .controls h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: var(--azul-profundo);
+    }
 
-        .content-card {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            margin-bottom: 1.5rem;
-        }
+    .obj-selector {
+      display: flex;
+      gap: 10px;
+    }
 
-        .section:nth-child(even) .content-card {
-            background-color: #f4f6f8; /* Mantém contraste em fundos alternados */
-        }
+    .obj-btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.95rem;
+      border-radius: 18px;
+      border: 3px solid transparent;
+    }
 
-        .content-card h3 {
-            color: #1e5a96;
-            margin-bottom: 0.75rem;
-            font-size: 1.25rem;
-        }
+    .obj-btn.selected {
+      border-color: var(--azul-profundo);
+      transform: translateY(3px);
+      box-shadow: var(--sombra-hover);
+    }
 
-        .content-card p {
-            margin-bottom: 1rem;
-            text-align: justify;
-        }
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
-        .content-card ul {
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
-        }
+    .slider-group label {
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+    }
 
-        .content-card li {
-            margin-bottom: 0.5rem;
-        }
+    .slider-group input[type="range"] {
+      width: 100%;
+      accent-color: var(--roxo-profundo);
+    }
 
-        .highlight-box {
-            background-color: #e8f1f8;
-            border-left: 4px solid #1e5a96;
-            padding: 1rem 1.25rem;
-            border-radius: 6px;
-            margin-top: 1rem;
-        }
+    .value-display {
+      font-weight: 700;
+      color: var(--roxo-profundo);
+      background: rgba(255,255,255,0.7);
+      padding: 2px 10px;
+      border-radius: 50px;
+    }
 
-        .highlight-box strong {
-            color: #0b1c2f;
-        }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-        /* =============================
-           QUIZ
-           ============================= */
-        #quiz {
-            background-color: #0b1c2f;
-            color: #ffffff;
-            padding: 4rem 1.5rem;
-        }
+    .action-buttons .btn {
+      flex: 1;
+      min-width: 100px;
+    }
 
-        .quiz-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
+    .info-card {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
 
-        #quiz h2 {
-            text-align: center;
-            font-size: 1.8rem;
-            margin-bottom: 2rem;
-        }
+    .info-card strong {
+      color: var(--roxo-profundo);
+    }
 
-        .quiz-question {
-            background-color: #142d49;
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
+    /* ESTUDO MODE */
+    .grade-tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
 
-        .quiz-question p {
-            font-weight: 600;
-            margin-bottom: 1rem;
-            font-size: 1.05rem;
-        }
+    .grade-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
 
-        .quiz-option {
-            display: block;
-            width: 100%;
-            text-align: left;
-            background-color: #1e3a5f;
-            color: #ffffff;
-            border: 1px solid #3a5a80;
-            border-radius: 6px;
-            padding: 0.85rem 1rem;
-            margin-bottom: 0.6rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            font-size: 1rem;
-        }
+    .grade-content.active {
+      display: block;
+    }
 
-        .quiz-option:hover {
-            background-color: #2a4d78;
-            border-color: #5a8ac0;
-        }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-        .quiz-option.correct {
-            background-color: #2e7d32;
-            border-color: #4caf50;
-        }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
 
-        .quiz-option.wrong {
-            background-color: #c62828;
-            border-color: #ef5350;
-        }
+    .card {
+      background: linear-gradient(135deg, var(--azul-ceu), var(--verde-lima));
+      border-radius: var(--raio);
+      padding: 18px;
+      box-shadow: var(--sombra);
+      transition: transform 0.2s ease;
+    }
 
-        .quiz-option:disabled {
-            cursor: default;
-            opacity: 0.9;
-        }
+    .card:nth-child(2n) {
+      background: linear-gradient(135deg, var(--rosa), var(--amarelo-claro));
+    }
 
-        .quiz-feedback {
-            margin-top: 0.75rem;
-            font-size: 0.95rem;
-            min-height: 1.4rem;
-            color: #b0d4f1;
-        }
+    .card:nth-child(3n) {
+      background: linear-gradient(135deg, var(--roxo), var(--azul-ceu));
+    }
 
-        .quiz-score {
-            text-align: center;
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-top: 2rem;
-            padding: 1rem;
-            background-color: #142d49;
-            border-radius: 8px;
-        }
+    .card:hover {
+      transform: translateY(-4px);
+    }
 
-        /* =============================
-           FOOTER
-           ============================= */
-        footer {
-            background-color: #071220;
-            color: #a0b3c6;
-            text-align: center;
-            padding: 2rem 1rem;
-            font-size: 0.9rem;
-        }
+    .card h4 {
+      margin: 0 0 10px 0;
+      font-size: 1.15rem;
+    }
 
-        /* =============================
-           RESPONSIVIDADE
-           ============================= */
-        @media (max-width: 768px) {
-            .menu-toggle {
-                display: block;
-            }
+    .card p {
+      margin: 0 0 14px 0;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
 
-            nav ul {
-                display: none; /* Escondido por padrão no mobile */
-                flex-direction: column;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                width: 100%;
-                background-color: #0b1c2f;
-                padding: 1rem 1.5rem;
-                gap: 1rem;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            }
+    .card a {
+      display: inline-block;
+      text-decoration: none;
+      background: var(--branco);
+      color: var(--azul-profundo);
+      padding: 8px 14px;
+      border-radius: 50px;
+      font-weight: 700;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+    }
 
-            nav ul.active {
-                display: flex; /* Exibe quando o menu é aberto */
-            }
+    .card a:hover {
+      box-shadow: 0 2px 0 rgba(0,0,0,0.1);
+      transform: translateY(2px);
+    }
 
-            .hero {
-                padding: 4rem 1rem;
-            }
+    .hidden {
+      display: none !important;
+    }
 
-            .hero h1 {
-                font-size: 1.9rem;
-            }
-
-            .hero p {
-                font-size: 1rem;
-            }
-
-            .section {
-                padding: 2.5rem 1rem;
-            }
-
-            .content-card {
-                padding: 1.25rem;
-            }
-
-            .section-title {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
+    footer {
+      text-align: center;
+      font-weight: 700;
+      color: var(--azul-profundo);
+      opacity: 0.8;
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>🌟 CosmoQuest 🚀</h1>
+    <div class="tagline">Astronomia interativa no estilo Funky Geo Quest!</div>
+  </header>
 
-    <!-- =============================
-         HEADER: LOGO E NAVEGAÇÃO
-         ============================= -->
-    <header>
-        <div class="nav-container">
-            <div class="logo">🚀 Astronomia Avançada</div>
-            <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false" onclick="toggleMenu()">☰</button>
-            <nav id="main-nav">
-                <ul>
-                    <li><a href="#home" onclick="closeMenu()">Home</a></li>
-                    <li><a href="#sexto" onclick="closeMenu()">6º Ano</a></li>
-                    <li><a href="#setimo" onclick="closeMenu()">7º Ano</a></li>
-                    <li><a href="#oitavo" onclick="closeMenu()">8º Ano</a></li>
-                    <li><a href="#nono" onclick="closeMenu()">9º Ano</a></li>
-                    <li><a href="#quiz" onclick="closeMenu()">Quiz</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
+  <div class="mode-switcher">
+    <button id="btnPlay" class="btn active" onclick="setMode('play')">🎮 Modo Play</button>
+    <button id="btnEstudo" class="btn btn-roxo" onclick="setMode('estudo')">📚 Modo Estudo</button>
+  </div>
 
-    <!-- =============================
-         HERO: TÍTULO IMPACTANTE
-         ============================= -->
-    <section class="hero" id="home">
-        <h1>Explorando o Universo</h1>
-        <p>Uma jornada pela astronomia avançada do 6º ao 9º ano. Do Sistema Solar aos buracos negros, descubra os mistérios do cosmos de forma clara e envolvente.</p>
-    </section>
+  <!-- MODO PLAY -->
+  <section id="playSection" class="container">
+    <h2 class="section-title">🎮 Mundo Aberto: Simulador Celeste</h2>
+    <div class="play-layout">
+      <div class="canvas-wrapper">
+        <canvas id="spaceCanvas" width="720" height="420"></canvas>
+        <div class="canvas-overlay">Clique no canvas para adicionar objetos</div>
+      </div>
 
-    <!-- =============================
-         6º ANO: SISTEMA SOLAR E GRAVITAÇÃO
-         ============================= -->
-    href="6anohtml/"
-    <section class="section" id="sexto">
-        <h2 class="section-title">6º Ano</h2>
-        <p class="section-subtitle">Sistema Solar e Gravitação</p>
+      <div class="controls">
+        <h3>🛠️ Controles do Objeto</h3>
 
-        <div class="content-card">
-            <h3>🌍 O Sistema Solar</h3>
-            <p>O Sistema Solar é formado pelo Sol, oito planetas, luas, asteroides, cometas e outros corpos celestes. Os planetas rochosos (Mercúrio, Vênus, Terra e Marte) ficam mais próximos do Sol, enquanto os gigantes gasosos (Júpiter, Saturno, Urano e Netuno) orbitam mais distantes.</p>
-            <p>A estrutura do Sistema Solar é organizada por forças gravitacionais e movimentos ordenados que mantêm cada corpo em sua trajetória.</p>
+        <div class="obj-selector">
+          <button class="btn obj-btn selected" data-type="star" onclick="selectType('star')">⭐ Estrela</button>
+          <button class="btn obj-btn" data-type="blackhole" onclick="selectType('blackhole')">🕳️ Buraco Negro</button>
         </div>
 
-        <div class="content-card">
-            <h3>⚖️ As Leis de Kepler</h3>
-            <p>Johannes Kepler descreveu três leis fundamentais para entender o movimento dos planetas:</p>
-            <ul>
-                <li><strong>1ª Lei:</strong> Os planetas orbitam o Sol em trajetórias elípticas, com o Sol em um dos focos.</li>
-                <li><strong>2ª Lei:</strong> A linha que une um planeta ao Sol varre áreas iguais em tempos iguais, ou seja, o planeta acelera quando está mais próximo do Sol.</li>
-                <li><strong>3ª Lei:</strong> O quadrado do período orbital de um planeta é proporcional ao cubo da distância média ao Sol.</li>
-            </ul>
-            <div class="highlight-box">
-                <strong>Curiosidade:</strong> A gravitação é a força que mantém a Lua em órbita da Terra e os planetas em órbita do Sol. Sem ela, os astros fluticariam sem trajetória definida pelo espaço.
-            </div>
-        </div>
-    </section>
-
-    <!-- =============================
-         7º ANO: CICLO DE VIDA ESTELAR
-         ============================= -->
-    href="7anohtml/"
-    <section class="section" id="setimo">
-        <h2 class="section-title">7º Ano</h2>
-        <p class="section-subtitle">Ciclo de Vida Estelar e Nebulosas</p>
-
-        <div class="content-card">
-            <h3>⭐ Nascimento, Vida e Morte das Estrelas</h3>
-            <p>As estrelas nascem em nuvens gigantes de gás e poeira chamadas nebulosas. Quando a gravidade comprime esse material, a temperatura e a pressão aumentam até iniciar as reações de fusão nuclear, fazendo a estrela "acender".</p>
-            <p>O ciclo de vida de uma estrela depende da sua massa:</p>
-            <ul>
-                <li><strong>Estrelas pequenas:</strong> vivem bilhões de anos e terminam como anãs brancas.</li>
-                <li><strong>Estrelas massivas:</strong> podem explodir como supernovas e deixar buracos negros ou estrelas de nêutrons.</li>
-            </ul>
+        <div class="slider-group">
+          <label for="massSlider">Massa <span class="value-display" id="massValue">1.0</span></label>
+          <input id="massSlider" type="range" min="0.3" max="5" step="0.1" value="1" oninput="updateFromSliders()">
         </div>
 
-        <div class="content-card">
-            <h3>🌌 Nebulosas</h3>
-            <p>Nebulosas são berçários estelares. A famosa Nebulosa de Órion, por exemplo, abriga estrelas em formação. Além disso, nebulosas podem ser resultado da morte de estrelas, como as nebulosas planetárias.</p>
-            <div class="highlight-box">
-                <strong>Pense nisso:</strong> Os átomos que formam o nosso corpo podem ter sido criados no interior de estrelas antigas. Somos, literalmente, poeira das estrelas!
-            </div>
-        </div>
-    </section>
-
-    <!-- =============================
-         8º ANO: GALÁXIAS E MATÉRIA ESCURA
-         ============================= -->
-    href="8anohtml/"
-    <section class="section" id="oitavo">
-        <h2 class="section-title">8º Ano</h2>
-        <p class="section-subtitle">Galáxias e Matéria Escura</p>
-
-        <div class="content-card">
-            <h3>🌠 Tipos de Galáxias</h3>
-            <p>Galáxias são grandes aglomerados de estrelas, gás, poeira e matéria escura. Elas podem ser classificadas em três principais tipos:</p>
-            <ul>
-                <li><strong>Espirais:</strong> possuem braços em rotação, como a Via Láctea.</li>
-                <li><strong>Elípticas:</strong> formato mais arredondado, com pouco gás e poeira.</li>
-                <li><strong>Irregulares:</strong> não têm formato definido.</li>
-            </ul>
-            <p>A Via Láctea, nossa galáxia, abriga cerca de 200 bilhões de estrelas e tem o Sol em um de seus braços espirais.</p>
+        <div class="slider-group">
+          <label for="sizeSlider">Tamanho <span class="value-display" id="sizeValue">40</span></label>
+          <input id="sizeSlider" type="range" min="10" max="100" step="1" value="40" oninput="updateFromSliders()">
         </div>
 
-        <div class="content-card">
-            <h3>🌑 Matéria Escura</h3>
-            <p>Matéria escura é uma substância misteriosa que não emite luz, mas sua presença é detectada pela gravidade. Ela mantém as galáxias unidas e influencia a forma como se movem no Universo.</p>
-            <div class="highlight-box">
-                <strong>Desafio científico:</strong> Cientistas ainda não sabem exatamente do que a matéria escura é feita. Estudos atuais buscam partículas invisíveis que possam explicar esse fenômeno.
-            </div>
-        </div>
-    </section>
-
-    <!-- =============================
-         9º ANO: BURACOS NEGROS, BIG BANG E EXOPLANETAS
-         ============================= -->
-    href="9anohtml/"
-    <section class="section" id="nono">
-        <h2 class="section-title">9º Ano</h2>
-        <p class="section-subtitle">Buracos Negros, Big Bang e Exoplanetas</p>
-
-        <div class="content-card">
-            <h3>🕳️ Buracos Negros</h3>
-            <p>Buracos negros são regiões do espaço onde a gravidade é tão intensa que nada, nem a luz, consegue escapar. Eles se formam quando estrelas muito massivas colapsam ao final de suas vidas.</p>
-            <p>A fronteira de um buraco negro é chamada de <strong>horizonte de eventos</strong>. Além dela, as leis da física conhecidas começam a se comportar de forma estranha.</p>
+        <div class="slider-group">
+          <label for="tempSlider">Temperatura <span class="value-display" id="tempValue">5000 K</span></label>
+          <input id="tempSlider" type="range" min="2000" max="12000" step="100" value="5000" oninput="updateFromSliders()">
         </div>
 
-        <div class="content-card">
-            <h3>💥 Big Bang</h3>
-            <p>O Big Bang é o modelo científico que descreve a origem do Universo há cerca de 13,8 bilhões de anos. O Universo começou extremamente quente e denso e vem se expandindo desde então.</p>
-            <div class="highlight-box">
-                <strong>Evidência:</strong> A radiação cósmica de fundo e o desvio para o vermelho da luz das galáxias distantes apoiam a teoria do Big Bang.
-            </div>
+        <div class="action-buttons">
+          <button class="btn btn-azul" onclick="clearObjects()">🧹 Limpar</button>
+          <button class="btn" onclick="addRandomObject()">🎲 Aleatório</button>
         </div>
 
-        <div class="content-card">
-            <h3>🪐 Exoplanetas</h3>
-            <p>Exoplanetas são planetas que orbitam estrelas fora do Sistema Solar. Cientistas os descobrem usando métodos como o trânsito (quando o planeta passa na frente da estrela) e a velocidade radial (movimento da estrela).</p>
-            <p>A busca por exoplanetas habitáveis é uma das áreas mais empolgantes da astronomia moderna.</p>
+        <div class="info-card" id="infoCard">
+          <strong>Dica:</strong> selecione o tipo de objeto, ajuste os controles e clique no canvas para colocá-lo no espaço!
         </div>
-    </section>
+      </div>
+    </div>
+  </section>
 
-    <!-- =============================
-         QUIZ INTERATIVO
-         ============================= -->
-    <section id="quiz">
-        <div class="quiz-container">
-            <h2>🧠 Teste seus Conhecimentos</h2>
-            <div id="quiz-content">
-                <!-- As perguntas são inseridas pelo JavaScript -->
-            </div>
-            <div id="quiz-result" class="quiz-score" style="display: none;"></div>
+  <!-- MODO ESTUDO -->
+  <section id="estudoSection" class="container hidden">
+    <h2 class="section-title">📚 Material de Estudo por Ano</h2>
+    <div class="grade-tabs">
+      <button class="btn active" onclick="openGrade('6')">6º Ano</button>
+      <button class="btn btn-roxo" onclick="openGrade('7')">7º Ano</button>
+      <button class="btn btn-azul" onclick="openGrade('8')">8º Ano</button>
+      <button class="btn" style="background: var(--rosa);" onclick="openGrade('9')">9º Ano</button>
+    </div>
+
+    <div id="grade-6" class="grade-content active">
+      <div class="cards-grid">
+        <div class="card">
+          <h4>🌙 Fases da Lua</h4>
+          <p>Entenda por que a Lua muda de forma no céu ao longo do mês e como a luz solar ilumina apenas parte dela.</p>
+          <a href="https://docs.google.com/presentation/d/1" target="_blank">Ver Slides</a>
         </div>
-    </section>
+        <div class="card">
+          <h4>☀️ O Sistema Solar</h4>
+          <p>Conheça os oito planetas, o Sol, luas e asteroides que fazem parte do nosso sistema planetário.</p>
+          <a href="https://docs.google.com/presentation/d/2" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>📝 Resumo: Planetas</h4>
+          <p>Planetas rochosos (Mercúrio, Vênus, Terra, Marte) e gasosos (Júpiter, Saturno, Urano, Netuno).</p>
+          <a href="#" onclick="alert('Resumo teórico: planetas dividem-se em rochosos e gasosos.'); return false;">Ler Resumo</a>
+        </div>
+      </div>
+    </div>
 
-    <!-- =============================
-         FOOTER
-         ============================= -->
-    <footer>
-        <p>&copy; 2025 Astronomia Avançada. Feito para alunos do 6º ao 9º ano.</p>
-    </footer>
+    <div id="grade-7" class="grade-content">
+      <div class="cards-grid">
+        <div class="card">
+          <h4>🌌 Galáxias</h4>
+          <p>Descubra como as galáxias são formadas por bilhões de estrelas, poeira e gás, incluindo a Via Láctea.</p>
+          <a href="https://docs.google.com/presentation/d/3" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>⭐ Nascimento das Estrelas</h4>
+          <p>Estrelas nascem de nebulosas e podem viver bilhões de anos dependendo da sua massa.</p>
+          <a href="https://docs.google.com/presentation/d/4" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>📝 Resumo: Estrelas</h4>
+          <p>Estrelas são esferas de plasma que geram energia pela fusão nuclear no núcleo.</p>
+          <a href="#" onclick="alert('Resumo teórico: estrelas produzem luz e calor por reações nucleares.'); return false;">Ler Resumo</a>
+        </div>
+      </div>
+    </div>
 
-    <!-- =============================
-         JAVASCRIPT: MENU E QUIZ
-         ============================= -->
-    <script>
-        // ------------------------------
-        // CONTROLE DO MENU MOBILE
-        // ------------------------------
-        function toggleMenu() {
-            const navUl = document.querySelector('#main-nav ul');
-            const button = document.querySelector('.menu-toggle');
-            const isOpen = navUl.classList.toggle('active');
-            button.setAttribute('aria-expanded', isOpen);
-            button.textContent = isOpen ? '✕' : '☰';
+    <div id="grade-8" class="grade-content">
+      <div class="cards-grid">
+        <div class="card">
+          <h4>🕳️ Buracos Negros</h4>
+          <p>Aprenda o que acontece quando uma estrela muito massiva colapsa e a gravidade se torna inescapável.</p>
+          <a href="https://docs.google.com/presentation/d/5" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>🌠 Cometas e Asteroides</h4>
+          <p>Objetos rochosos e gelados que viajam pelo espaço e podem deixar rastros brilhantes perto do Sol.</p>
+          <a href="https://docs.google.com/presentation/d/6" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>📝 Resumo: Gravidade</h4>
+          <p>A gravidade governa o movimento dos corpos celestes e molda buracos negros e galáxias.</p>
+          <a href="#" onclick="alert('Resumo teórico: buracos negros têm gravidade tão forte que a luz não escapa.'); return false;">Ler Resumo</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="grade-9" class="grade-content">
+      <div class="cards-grid">
+        <div class="card">
+          <h4>🌌 Expansão do Universo</h4>
+          <p>O universo está em expansão: galáxias distantes se afastam umas das outras desde o Big Bang.</p>
+          <a href="https://docs.google.com/presentation/d/7" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>🔭 Leis de Kepler</h4>
+          <p>As órbitas planetárias são elipses e seus movimentos seguem relações matemáticas elegantes.</p>
+          <a href="https://docs.google.com/presentation/d/8" target="_blank">Ver Slides</a>
+        </div>
+        <div class="card">
+          <h4>📝 Resumo: Cosmologia</h4>
+          <p>Cosmologia estuda a origem, evolução e estrutura em grande escala do universo.</p>
+          <a href="#" onclick="alert('Resumo teórico: o Big Bang é o modelo científico que descreve a origem do universo.'); return false;">Ler Resumo</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Feito com 💫 para explorar o cosmos | CosmoQuest
+  </footer>
+
+  <script>
+    // Modo de exibição
+    function setMode(mode) {
+      const playSection = document.getElementById('playSection');
+      const estudoSection = document.getElementById('estudoSection');
+      const btnPlay = document.getElementById('btnPlay');
+      const btnEstudo = document.getElementById('btnEstudo');
+
+      if (mode === 'play') {
+        playSection.classList.remove('hidden');
+        estudoSection.classList.add('hidden');
+        btnPlay.classList.add('active');
+        btnEstudo.classList.remove('active');
+        resizeCanvas();
+      } else {
+        playSection.classList.add('hidden');
+        estudoSection.classList.remove('hidden');
+        btnPlay.classList.remove('active');
+        btnEstudo.classList.add('active');
+      }
+    }
+
+    // Abas do estudo
+    function openGrade(grade) {
+      const contents = document.querySelectorAll('.grade-content');
+      contents.forEach(c => c.classList.remove('active'));
+      document.getElementById('grade-' + grade).classList.add('active');
+
+      const tabs = document.querySelectorAll('.grade-tabs .btn');
+      tabs.forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    // Simulador
+    const canvas = document.getElementById('spaceCanvas');
+    const ctx = canvas.getContext('2d');
+    let objects = [];
+    let selectedType = 'star';
+
+    // Estrelas de fundo
+    const stars = [];
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1.5 + 0.5,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+
+    function resizeCanvas() {
+      const wrapper = canvas.parentElement;
+      canvas.width = wrapper.clientWidth;
+      canvas.height = 420;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function selectType(type) {
+      selectedType = type;
+      document.querySelectorAll('.obj-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.type === type);
+      });
+      updateInfo();
+    }
+
+    function updateFromSliders() {
+      const mass = parseFloat(document.getElementById('massSlider').value);
+      const size = parseInt(document.getElementById('sizeSlider').value);
+      const temp = parseInt(document.getElementById('tempSlider').value);
+
+      document.getElementById('massValue').textContent = mass.toFixed(1);
+      document.getElementById('sizeValue').textContent = size;
+      document.getElementById('tempValue').textContent = temp + ' K';
+
+      updateInfo();
+      draw();
+    }
+
+    function updateInfo() {
+      const mass = parseFloat(document.getElementById('massSlider').value);
+      const temp = parseInt(document.getElementById('tempSlider').value);
+      const info = document.getElementById('infoCard');
+
+      let text = '';
+      if (selectedType === 'star') {
+        let colorName = temp < 3500 ? 'vermelha' : temp < 5500 ? 'laranja/amarela' : temp < 8000 ? 'branca' : 'azul';
+        text = `<strong>Estrela:</strong> massa ${mass.toFixed(1)}×☉, temperatura ${temp} K. Cor típica: ${colorName}.`;
+      } else {
+        text = `<strong>Buraco Negro:</strong> massa ${mass.toFixed(1)}×☉. A luz não escapa do horizonte de eventos!`;
+      }
+      info.innerHTML = text;
+    }
+
+    function getStarColor(temp) {
+      if (temp < 3500) return '#ff5e5e';
+      if (temp < 5500) return '#ffd166';
+      if (temp < 8000) return '#ffffff';
+      return '#7fd3ff';
+    }
+
+    function addObject(x, y) {
+      const mass = parseFloat(document.getElementById('massSlider').value);
+      const size = parseInt(document.getElementById('sizeSlider').value);
+      const temp = parseInt(document.getElementById('tempSlider').value);
+
+      objects.push({
+        type: selectedType,
+        x,
+        y,
+        mass,
+        size,
+        temp,
+        pulse: Math.random() * Math.PI * 2
+      });
+      draw();
+    }
+
+    function addRandomObject() {
+      const x = Math.random() * (canvas.width - 100) + 50;
+      const y = Math.random() * (canvas.height - 100) + 50;
+      addObject(x, y);
+    }
+
+    function clearObjects() {
+      objects = [];
+      draw();
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      addObject((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+    });
+
+    function draw() {
+      // Fundo espacial
+      const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(1, '#0f0f23');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Estrelas de fundo
+      const time = Date.now() / 800;
+      stars.forEach(s => {
+        const alpha = 0.5 + 0.5 * Math.sin(time + s.twinkle);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Objetos celestes
+      objects.forEach(obj => {
+        const pulse = 1 + 0.05 * Math.sin(time * 2 + obj.pulse);
+        const radius = obj.size * pulse;
+
+        if (obj.type === 'blackhole') {
+          // Disco de acreção
+          const diskGradient = ctx.createRadialGradient(obj.x, obj.y, radius * 0.6, obj.x, obj.y, radius * 2.5);
+          diskGradient.addColorStop(0, 'rgba(255, 100, 50, 0.8)');
+          diskGradient.addColorStop(0.5, 'rgba(255, 180, 50, 0.4)');
+          diskGradient.addColorStop(1, 'rgba(255, 180, 50, 0)');
+          ctx.fillStyle = diskGradient;
+          ctx.beginPath();
+          ctx.arc(obj.x, obj.y, radius * 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Buraco negro
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(obj.x, obj.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Brilho da borda
+          ctx.strokeStyle = `rgba(255, 180, 80, ${0.3 + 0.2 * Math.sin(time * 3)})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        } else {
+          // Aura estelar
+          const starColor = getStarColor(obj.temp);
+          const glow = ctx.createRadialGradient(obj.x, obj.y, radius * 0.5, obj.x, obj.y, radius * 2.5 * obj.mass);
+          glow.addColorStop(0, starColor);
+          glow.addColorStop(0.5, hexToRgba(starColor, 0.3));
+          glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(obj.x, obj.y, radius * 2.5 * obj.mass, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Núcleo
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(obj.x, obj.y, radius * 0.7, 0, Math.PI * 2);
+          ctx.fill();
         }
+      });
 
-        function closeMenu() {
-            const navUl = document.querySelector('#main-nav ul');
-            const button = document.querySelector('.menu-toggle');
-            navUl.classList.remove('active');
-            button.setAttribute('aria-expanded', 'false');
-            button.textContent = '☰';
-        }
+      requestAnimationFrame(draw);
+    }
 
-        // ------------------------------
-        // DADOS DO QUIZ
-        // ------------------------------
-        const quizData = [
-            {
-                question: "Qual é a forma da órbita dos planetas, segundo Kepler?",
-                options: ["Circular", "Elíptica", "Retilínea", "Espiral"],
-                answer: 1
-            },
-            {
-                question: "Onde nascem as estrelas?",
-                options: ["Em buracos negros", "Em nebulosas", "No centro de galáxias", "Fora do Universo"],
-                answer: 1
-            },
-            {
-                question: "Qual substância misteriosa mantém as galáxias unidas?",
-                options: ["Matéria escura", "Antimatéria", "Plasma", "Hélio"],
-                answer: 0
-            },
-            {
-                question: "O que nada pode escapar, nem mesmo a luz?",
-                options: ["Uma supernova", "Um buraco negro", "Uma nebulosa", "Um cometa"],
-                answer: 1
-            },
-            {
-                question: "Como se chamam os planetas fora do Sistema Solar?",
-                options: ["Asteroides", "Exoplanetas", "Anões brancos", "Galáxias"],
-                answer: 1
-            }
-        ];
+    function hexToRgba(hex, alpha) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
 
-        let score = 0;
-        let answeredCount = 0;
-
-        // ------------------------------
-        // RENDERIZAÇÃO DO QUIZ
-        // ------------------------------
-        const quizContent = document.getElementById('quiz-content');
-        const resultBox = document.getElementById('quiz-result');
-
-        quizData.forEach((item, index) => {
-            // Cria o container da pergunta
-            const questionDiv = document.createElement('div');
-            questionDiv.className = 'quiz-question';
-
-            // Texto da pergunta
-            const questionText = document.createElement('p');
-            questionText.textContent = `${index + 1}. ${item.question}`;
-            questionDiv.appendChild(questionText);
-
-            // Cria as opções de resposta
-            item.options.forEach((option, optionIndex) => {
-                const button = document.createElement('button');
-                button.className = 'quiz-option';
-                button.textContent = option;
-                button.addEventListener('click', () => checkAnswer(button, optionIndex, item.answer, index));
-                questionDiv.appendChild(button);
-            });
-
-            // Área para feedback ao usuário
-            const feedback = document.createElement('div');
-            feedback.className = 'quiz-feedback';
-            feedback.id = `feedback-${index}`;
-            questionDiv.appendChild(feedback);
-
-            quizContent.appendChild(questionDiv);
-        });
-
-        // ------------------------------
-        // LÓGICA DE VERIFICAÇÃO DAS RESPOSTAS
-        // ------------------------------
-        function checkAnswer(button, selectedIndex, correctIndex, questionIndex) {
-            const questionDiv = button.parentElement;
-            const buttons = questionDiv.querySelectorAll('.quiz-option');
-            const feedback = document.getElementById(`feedback-${questionIndex}`);
-
-            // Evita que a pergunta seja respondida mais de uma vez
-            if (buttons[0].disabled) return;
-
-            buttons.forEach(btn => btn.disabled = true);
-
-            if (selectedIndex === correctIndex) {
-                button.classList.add('correct');
-                feedback.textContent = 'Resposta correta! 🎉';
-                score++;
-            } else {
-                button.classList.add('wrong');
-                buttons[correctIndex].classList.add('correct');
-                feedback.textContent = 'Resposta incorreta. A alternativa correta está destacada.';
-            }
-
-            answeredCount++;
-
-            // Exibe a pontuação final quando todas as perguntas forem respondidas
-            if (answeredCount === quizData.length) {
-                resultBox.style.display = 'block';
-                resultBox.textContent = `Você acertou ${score} de ${quizData.length} perguntas!`;
-            }
-        }
-    </script>
+    // Inicialização
+    updateFromSliders();
+    draw();
+  </script>
 </body>
 </html>
